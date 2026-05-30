@@ -1,0 +1,1454 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ألعاب أبو ضحيان 🎮</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+/* ═══════════════════════════════════════════
+   DESIGN TOKENS — Farayhi Palette
+   ═══════════════════════════════════════════ */
+:root{
+  --sun:#FFD93D;--sun2:#FFB700;
+  --sky:#4ECDC4;--sky2:#1A9E97;
+  --coral:#FF6B6B;--coral2:#E63E3E;
+  --grape:#A855F7;--grape2:#7C3AED;
+  --mint:#00C896;--mint2:#00A07A;
+  --peach:#FF9F43;--peach2:#F07020;
+  --pink:#FF6FCF;--pink2:#D94FB0;
+  --bg:#FFFDF5;--bg2:#FFF8E1;--bg3:#FFF0C0;--bg4:#FFE88A;
+  --card:#FFFFFF;
+  --text:#1A1A2E;--text-dim:#7A7A8A;--text-mid:#444460;
+  --radius-sm:10px;--radius:18px;--radius-lg:26px;--radius-xl:36px;
+  --ease:cubic-bezier(0.34,1.56,0.64,1);
+  --easeOut:cubic-bezier(0.4,0,0.2,1);
+  --dur:0.38s;
+  --shadow:0 4px 24px rgba(0,0,0,0.10);
+  --shadow-lg:0 8px 40px rgba(0,0,0,0.15);
+  font-family:'Tajawal',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--sun2);border-radius:2px;}
+
+/* ── SCREENS ── */
+.screen{display:none;min-height:100dvh;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px);}
+.screen.active{display:flex;animation:screenIn var(--dur) var(--ease);}
+@keyframes screenIn{from{opacity:0;transform:translateY(18px) scale(0.97);}to{opacity:1;transform:translateY(0) scale(1);}}
+
+/* ── TOP BADGE ── */
+#role-badge{
+  position:fixed;top:0;left:0;right:0;z-index:900;
+  padding:calc(env(safe-area-inset-top,0px) + 8px) 16px 8px;
+  background:rgba(255,253,245,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:2px solid var(--sun);display:none;align-items:center;justify-content:space-between;gap:8px;
+}
+#role-badge.visible{display:flex;}
+.badge-role{font-size:13px;font-weight:900;color:var(--text);display:flex;align-items:center;gap:6px;}
+.badge-host{color:var(--peach2);}
+.badge-player{color:var(--sky2);}
+.badge-room-btn{font-size:11px;font-weight:700;color:var(--text-mid);background:var(--bg3);padding:5px 12px;border-radius:20px;border:1.5px solid var(--sun2);cursor:pointer;font-family:'Tajawal',sans-serif;transition:background .2s;}
+.badge-room-btn:active{background:var(--bg4);}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--text);color:#fff;border-radius:40px;padding:11px 24px;font-size:14px;font-weight:700;z-index:9999;transition:transform .28s var(--easeOut);white-space:nowrap;max-width:88vw;pointer-events:none;box-shadow:var(--shadow-lg);}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ── COUNTDOWN SPLASH ── */
+#cd-splash{position:fixed;inset:0;z-index:8000;background:rgba(255,253,245,0.95);backdrop-filter:blur(10px);display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;}
+#cd-splash.show{display:flex;}
+.cd-num{font-size:140px;font-weight:900;line-height:1;background:linear-gradient(135deg,var(--coral),var(--peach));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:cdPop .4s var(--ease);}
+@keyframes cdPop{from{transform:scale(.3);opacity:0;}to{transform:scale(1);opacity:1;}}
+#cd-splash p{font-size:22px;color:var(--text-dim);font-weight:700;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:15px 28px;border-radius:var(--radius);border:none;font-family:'Tajawal',sans-serif;font-size:16px;font-weight:900;cursor:pointer;transition:transform .15s,box-shadow .15s;user-select:none;-webkit-user-select:none;touch-action:manipulation;width:100%;line-height:1.2;}
+.btn:active{transform:scale(.95);}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.btn-sun{background:linear-gradient(135deg,var(--sun),var(--sun2));color:var(--text);box-shadow:0 4px 16px rgba(255,183,0,.4);}
+.btn-coral{background:linear-gradient(135deg,var(--coral),var(--coral2));color:#fff;box-shadow:0 4px 16px rgba(255,107,107,.4);}
+.btn-sky{background:linear-gradient(135deg,var(--sky),var(--sky2));color:#fff;box-shadow:0 4px 16px rgba(78,205,196,.4);}
+.btn-mint{background:linear-gradient(135deg,var(--mint),var(--mint2));color:#fff;box-shadow:0 4px 16px rgba(0,200,150,.4);}
+.btn-grape{background:linear-gradient(135deg,var(--grape),var(--grape2));color:#fff;box-shadow:0 4px 16px rgba(168,85,247,.35);}
+.btn-ghost{background:#fff;color:var(--text);border:2px solid var(--sun);box-shadow:var(--shadow);}
+.btn-sm{padding:10px 18px;font-size:14px;width:auto;}
+
+/* ── INPUTS ── */
+.inp{width:100%;background:#fff;border:2px solid var(--sun2);border-radius:var(--radius);color:var(--text);font-family:'Tajawal',sans-serif;font-size:16px;font-weight:700;padding:14px 18px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;appearance:none;box-shadow:var(--shadow);}
+.inp:focus{border-color:var(--coral);box-shadow:0 0 0 3px rgba(255,107,107,.18);}
+.inp::placeholder{color:var(--text-dim);}
+
+/* ── UTILS ── */
+.hidden{display:none!important;}
+.flex-col{display:flex;flex-direction:column;gap:12px;}
+.px{padding:0 18px;}
+.divider{height:2px;background:var(--bg3);margin:4px 0;border-radius:1px;}
+
+/* ═══════════════════════════════════════════
+   SCREEN 1 — ENTRY
+   ═══════════════════════════════════════════ */
+#s-entry{align-items:center;justify-content:center;padding:28px 18px;background:linear-gradient(160deg,#FFF8DC 0%,#FFEAA7 40%,#FFD3A5 70%,#FFB7B7 100%);position:relative;overflow:hidden;}
+#s-entry::before{content:'🎮🎲🃏🎯🏆🎉';font-size:40px;position:absolute;top:-20px;left:0;right:0;animation:floatBg 8s linear infinite;opacity:.12;letter-spacing:20px;white-space:nowrap;}
+@keyframes floatBg{from{transform:translateX(100%);}to{transform:translateX(-100%);}}
+.entry-logo{text-align:center;margin-bottom:28px;position:relative;z-index:1;}
+.entry-logo .logo-emoji{font-size:80px;display:block;margin-bottom:8px;animation:logoFloat 2.8s ease-in-out infinite;filter:drop-shadow(0 8px 16px rgba(255,100,0,.3));}
+@keyframes logoFloat{0%,100%{transform:translateY(0) rotate(-4deg);}50%{transform:translateY(-12px) rotate(4deg);}}
+.entry-logo h1{font-size:28px;font-weight:900;background:linear-gradient(135deg,#FF6B35,#F7C59F,#FF6B6B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.entry-logo p{font-size:14px;color:var(--text-dim);margin-top:4px;font-weight:700;}
+.entry-form{width:100%;max-width:420px;position:relative;z-index:1;}
+.tab-row{display:flex;gap:8px;background:rgba(255,255,255,.6);border-radius:var(--radius);padding:5px;margin-bottom:18px;border:2px solid var(--sun2);}
+.tab-btn{flex:1;padding:11px 8px;border-radius:14px;background:transparent;border:none;color:var(--text-dim);font-family:'Tajawal',sans-serif;font-size:14px;font-weight:900;cursor:pointer;transition:background var(--easeOut),color var(--easeOut),transform .15s;}
+.tab-btn.active{background:var(--sun);color:var(--text);transform:scale(1.02);}
+.panel{display:none;flex-direction:column;gap:14px;}
+.panel.active{display:flex;}
+
+/* ═══════════════════════════════════════════
+   SCREEN 2 — HUB
+   ═══════════════════════════════════════════ */
+#s-hub{padding-top:58px;background:var(--bg);}
+.hub-top{padding:18px 18px 8px;text-align:center;background:linear-gradient(160deg,#FFF8DC,#FFE9A0);border-bottom:2px solid var(--sun2);}
+.hub-top h2{font-size:20px;font-weight:900;color:var(--text);}
+.hub-top p{font-size:13px;color:var(--text-dim);margin-top:2px;font-weight:700;}
+.players-row{display:flex;gap:10px;padding:12px 18px 6px;overflow-x:auto;scrollbar-width:none;}
+.players-row::-webkit-scrollbar{display:none;}
+.player-chip{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:58px;flex-shrink:0;}
+.player-chip .av{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;border:3px solid var(--sun2);background:#fff;transition:border-color .2s,box-shadow .2s;box-shadow:var(--shadow);}
+.player-chip.online .av{border-color:var(--mint);box-shadow:0 0 12px rgba(0,200,150,.35);}
+.player-chip.is-bot .av{border-color:var(--grape);box-shadow:0 0 12px rgba(168,85,247,.35);}
+.player-chip .pn{font-size:9px;color:var(--text-dim);text-align:center;max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;}
+.hub-lb-wrap{padding:4px 18px 0;}
+.hub-lb-title{font-size:11px;font-weight:900;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+.hub-lb{display:flex;flex-direction:column;gap:6px;}
+.hub-lb-row{display:flex;align-items:center;gap:10px;background:#fff;border-radius:var(--radius);padding:10px 14px;box-shadow:var(--shadow);border-right:4px solid var(--sun2);}
+.hub-lb-row:nth-child(1){border-color:var(--sun2);}
+.hub-lb-row:nth-child(2){border-color:#CCC;}
+.hub-lb-row:nth-child(3){border-color:#CD7F32;}
+.hub-lb-rank{font-size:18px;font-weight:900;width:24px;text-align:center;}
+.hub-lb-name{flex:1;font-size:13px;font-weight:700;}
+.hub-lb-score{font-size:13px;font-weight:900;color:var(--coral2);}
+.info-cards{display:flex;gap:10px;padding:8px 18px;flex-wrap:wrap;}
+.info-card{flex:1;min-width:140px;background:#fff;border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow);border:2px solid var(--sun2);}
+.info-card p{font-size:11px;color:var(--text-dim);font-weight:700;margin-bottom:6px;}
+.bot-card{margin:0 18px 8px;background:#fff;border-radius:var(--radius-lg);padding:14px 18px;box-shadow:var(--shadow);border:2px solid #E9D5FF;}
+.bot-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.bot-card-top span{font-size:13px;font-weight:900;color:var(--grape2);}
+.bot-count-chip{font-size:11px;font-weight:700;color:var(--grape2);background:#F3E8FF;padding:3px 10px;border-radius:20px;border:1.5px solid #D8B4FE;}
+.bot-btn-row{display:flex;gap:8px;}
+.btn-bot-add{flex:1;padding:10px;border-radius:12px;border:2px solid #D8B4FE;background:#F3E8FF;color:var(--grape2);font-family:'Tajawal',sans-serif;font-size:13px;font-weight:900;cursor:pointer;transition:all .15s;touch-action:manipulation;}
+.btn-bot-add:active{transform:scale(.95);background:#E9D5FF;}
+.btn-bot-rem{flex:1;padding:10px;border-radius:12px;border:2px solid #FCA5A5;background:#FEE2E2;color:var(--coral2);font-family:'Tajawal',sans-serif;font-size:13px;font-weight:900;cursor:pointer;transition:all .15s;touch-action:manipulation;}
+.btn-bot-rem:active{transform:scale(.95);background:#FECACA;}
+.btn-bot-rem:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+.game-cards{display:flex;flex-direction:column;gap:14px;padding:8px 18px 0;}
+.gcard{border-radius:var(--radius-lg);padding:22px 20px 20px;cursor:pointer;position:relative;overflow:hidden;transition:transform .18s var(--ease),box-shadow .18s;min-height:152px;display:flex;flex-direction:column;justify-content:flex-end;border:none;-webkit-user-select:none;user-select:none;box-shadow:var(--shadow-lg);}
+.gcard:active{transform:scale(.96);}
+.gcard-bomb{background:linear-gradient(135deg,#FF6B6B 0%,#FF8E53 50%,#FFA45B 100%);}
+.gcard-spy{background:linear-gradient(135deg,#667EEA 0%,#764BA2 60%,#F64F59 100%);}
+.gcard-speed{background:linear-gradient(135deg,#0BAB64 0%,#3BB78F 50%,#4ECDC4 100%);}
+.gcard-shine{position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.18) 0%,transparent 60%);pointer-events:none;}
+.gcard-emoji{position:absolute;top:16px;right:16px;font-size:52px;animation:cardFloat 2.5s ease-in-out infinite;filter:drop-shadow(0 4px 8px rgba(0,0,0,.2));}
+.gcard:nth-child(2) .gcard-emoji{animation-delay:.7s;}
+.gcard:nth-child(3) .gcard-emoji{animation-delay:1.4s;}
+@keyframes cardFloat{0%,100%{transform:translateY(0) rotate(-4deg);}50%{transform:translateY(-8px) rotate(4deg);}}
+.gcard-badge{position:absolute;top:14px;left:14px;background:rgba(255,255,255,.25);border-radius:20px;padding:4px 10px;font-size:10px;color:#fff;font-weight:900;backdrop-filter:blur(4px);}
+.gcard h3{font-size:19px;font-weight:900;color:#fff;position:relative;z-index:1;text-shadow:0 2px 8px rgba(0,0,0,.2);}
+.gcard p{font-size:12px;color:rgba(255,255,255,.85);position:relative;z-index:1;margin-top:3px;font-weight:700;}
+.master-bar{margin-top:auto;padding:14px 18px 16px;}
+
+/* ═══════════════════════════════════════════
+   SCREEN 3 — ONBOARDING
+   ═══════════════════════════════════════════ */
+#s-onboard{padding:58px 18px 28px;gap:16px;background:var(--bg);}
+.onboard-head{text-align:center;padding:14px 0;}
+.onboard-head .ob-emoji{font-size:80px;display:block;margin-bottom:12px;}
+.onboard-head h2{font-size:23px;font-weight:900;}
+.onboard-head p{font-size:14px;color:var(--text-dim);margin-top:6px;line-height:1.65;font-weight:700;}
+.how-list{display:flex;flex-direction:column;gap:10px;}
+.how-item{display:flex;align-items:flex-start;gap:12px;background:#fff;border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);border-right:4px solid var(--sun2);}
+.how-item .hi-icon{width:42px;height:42px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--bg2);}
+.how-item .hi-text strong{display:block;font-size:14px;font-weight:900;}
+.how-item .hi-text span{font-size:12px;color:var(--text-dim);line-height:1.5;font-weight:700;}
+.onboard-actions{display:flex;flex-direction:column;gap:10px;margin-top:auto;}
+.wait-box{display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px 0;text-align:center;}
+.spinner{width:50px;height:50px;border:4px solid var(--bg3);border-top-color:var(--coral);border-radius:50%;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.wait-box h3{font-size:17px;font-weight:900;}
+.wait-box p{font-size:13px;color:var(--text-dim);font-weight:700;}
+
+/* ── GAME TOP BAR ── */
+.gtopbar{position:sticky;top:56px;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:rgba(255,253,245,.95);backdrop-filter:blur(12px);border-bottom:2px solid var(--sun2);box-shadow:0 2px 12px rgba(0,0,0,.06);}
+.gtopbar .gt-title{font-size:15px;font-weight:900;}
+.gtopbar .gt-timer{font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--coral2);}
+.t-danger{color:var(--coral2)!important;animation:tPulse .5s ease infinite alternate;}
+@keyframes tPulse{from{opacity:1;}to{opacity:.3;}}
+
+/* ═══════════════════════════════════════════
+   SCREEN 4 — BOMB  (Host-Centric Redesign)
+   ═══════════════════════════════════════════ */
+#s-bomb{padding-top:110px;padding-bottom:32px;align-items:center;gap:18px;text-align:center;background:linear-gradient(180deg,#FFF8DC 0%,#FFE4C4 100%);}
+
+/* Dual-timer strip (topbar supplement) */
+.bomb-timer-row{display:flex;gap:10px;padding:0 18px;width:100%;}
+.bomb-timer-card{
+  flex:1;background:#fff;border-radius:var(--radius);padding:12px 10px;text-align:center;
+  box-shadow:var(--shadow);border:2px solid var(--sun2);
+}
+.bomb-timer-card.main-t{border-color:var(--coral);}
+.bomb-timer-card.sub-t{border-color:var(--sky);}
+.btc-label{font-size:10px;color:var(--text-dim);font-weight:900;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;}
+.btc-val{font-size:28px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--coral2);}
+.btc-val.sky{color:var(--sky2);}
+.btc-val.danger{color:var(--coral2);animation:tPulse .4s ease infinite alternate;}
+
+/* Category card */
+.bomb-cat{background:#fff;border:3px solid var(--coral);border-radius:var(--radius-lg);padding:14px 20px;margin:0 18px;width:calc(100% - 36px);box-shadow:var(--shadow);}
+.bomb-cat .bc-label{font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:900;}
+.bomb-cat .bc-val{font-size:19px;font-weight:900;color:var(--coral2);}
+.bomb-cat .bc-char{font-size:13px;color:var(--peach2);font-weight:900;margin-top:3px;}
+
+/* Arena */
+.bomb-arena{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;padding:0 18px;}
+.bomb-icon{font-size:96px;line-height:1;animation:bTick .7s ease-in-out infinite alternate;filter:drop-shadow(0 8px 24px rgba(255,107,107,.4));}
+.bomb-icon.fast{animation-duration:.22s;}
+@keyframes bTick{from{transform:scale(1) rotate(-4deg);}to{transform:scale(1.09) rotate(4deg);}}
+.bomb-status{font-size:16px;font-weight:900;color:var(--text-dim);}
+.bomb-status.mine{color:var(--coral2);font-size:18px;animation:mPulse .8s ease infinite alternate;}
+@keyframes mPulse{from{opacity:1;}to{opacity:.4;}}
+.bomb-status.bot-thinking{color:var(--grape2);font-size:16px;animation:mPulse .6s ease infinite alternate;}
+
+/* Host-only pass button — large and prominent */
+.btn-pass-host{
+  font-size:19px;padding:18px 24px;border-radius:22px;width:100%;max-width:310px;
+  background:linear-gradient(135deg,var(--mint),var(--mint2));color:#fff;border:none;
+  font-family:'Tajawal',sans-serif;font-weight:900;cursor:pointer;
+  box-shadow:0 8px 28px rgba(0,200,150,.45);animation:passGlowGreen .9s ease infinite alternate;
+  touch-action:manipulation;
+}
+.btn-pass-host:active{transform:scale(.93);}
+@keyframes passGlowGreen{from{box-shadow:0 4px 16px rgba(0,200,150,.35);}to{box-shadow:0 12px 40px rgba(0,200,150,.75);}}
+
+/* Time selection row (shown before round starts) */
+.bomb-setup{padding:0 18px;width:100%;display:flex;flex-direction:column;gap:12px;}
+.bomb-setup h4{font-size:15px;font-weight:900;color:var(--text);text-align:center;}
+.time-options{display:flex;gap:10px;justify-content:center;}
+.time-opt{
+  padding:12px 20px;border-radius:var(--radius);border:3px solid var(--sun2);
+  background:#fff;font-family:'Tajawal',sans-serif;font-size:16px;font-weight:900;
+  cursor:pointer;transition:all .2s;color:var(--text);box-shadow:var(--shadow);
+}
+.time-opt.selected{background:var(--coral);border-color:var(--coral2);color:#fff;box-shadow:0 4px 16px rgba(255,107,107,.45);}
+.time-opt:active{transform:scale(.95);}
+
+/* Players chips */
+.bomb-players{display:flex;flex-wrap:wrap;gap:8px;padding:0 18px;justify-content:center;width:100%;}
+.bchip{padding:8px 16px;border-radius:30px;font-size:13px;font-weight:900;background:#fff;border:2.5px solid var(--sun2);color:var(--text-dim);transition:all .2s;box-shadow:var(--shadow);}
+.bchip.active{background:linear-gradient(135deg,var(--coral),var(--peach));border-color:transparent;color:#fff;box-shadow:0 4px 16px rgba(255,107,107,.4);}
+.bchip.is-bot{border-color:#D8B4FE;}
+.bchip.is-bot.active{background:linear-gradient(135deg,var(--grape),var(--grape2));border-color:transparent;}
+
+/* Explosion overlay */
+.expl-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#FF0040,#FF6B6B);z-index:9800;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;padding:28px;}
+.expl-overlay.show{display:flex;animation:explIn .12s ease;}
+@keyframes explIn{from{opacity:0;}to{opacity:1;}}
+.expl-overlay .ex-e{font-size:120px;animation:exBounce .28s ease infinite alternate;}
+@keyframes exBounce{from{transform:scale(1);}to{transform:scale(1.2);}}
+.expl-overlay h2{font-size:36px;font-weight:900;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.3);}
+.expl-overlay p{font-size:16px;color:rgba(255,255,255,.9);font-weight:700;}
+@keyframes devShake{0%,100%{transform:translate(0,0);}14%{transform:translate(-9px,5px);}28%{transform:translate(9px,-5px);}42%{transform:translate(-7px,7px);}56%{transform:translate(7px,-7px);}70%{transform:translate(-5px,3px);}85%{transform:translate(5px,-3px);}}
+body.shaking{animation:devShake .09s ease infinite;}
+
+/* ═══════════════════════════════════════════
+   SCREEN 5 — SPY
+   ═══════════════════════════════════════════ */
+#s-spy{padding-top:110px;padding-bottom:28px;gap:16px;background:linear-gradient(180deg,#F3E8FF 0%,#E0D4F7 100%);}
+.spy-card{margin:0 18px;border-radius:var(--radius-lg);padding:26px 22px;text-align:center;box-shadow:var(--shadow-lg);}
+.spy-card.loc-card{background:linear-gradient(135deg,#667EEA,#764BA2);color:#fff;}
+.spy-card.spy-card-r{background:linear-gradient(135deg,#F64F59,#C0392B);color:#fff;}
+.spy-card.reveal-card{background:linear-gradient(135deg,#0BAB64,#3BB78F);color:#fff;}
+.spy-card .sc-emoji{font-size:52px;display:block;margin-bottom:12px;}
+.spy-card .sc-label{font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;opacity:.8;font-weight:900;}
+.spy-card .sc-val{font-size:24px;font-weight:900;}
+.spy-card .sc-hint{font-size:13px;margin-top:10px;line-height:1.65;opacity:.85;font-weight:700;}
+.spy-host-panel{margin:0 18px;background:#fff;border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow);border:2px solid #E9D5FF;}
+.spy-host-panel h4{font-size:14px;font-weight:900;color:var(--grape2);margin-bottom:10px;}
+.spy-player-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1.5px solid var(--bg3);}
+.spy-player-row:last-child{border-bottom:none;}
+.spy-player-row .spr-name{font-size:13px;font-weight:700;}
+.spy-player-row .spr-role{font-size:12px;font-weight:900;}
+.spr-role.is-spy-role{color:var(--coral2);}
+.spr-role.is-player-role{color:var(--sky2);}
+.spy-vote-bar{font-size:13px;font-weight:700;color:var(--text-dim);margin-top:4px;}
+.spy-timer-sec{text-align:center;padding:0 18px;}
+.spy-big-t{font-size:68px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--grape2);line-height:1;}
+.spy-big-t.t-danger{color:var(--coral2);animation:tPulse .5s ease infinite alternate;}
+.spy-t-label{font-size:12px;color:var(--text-dim);margin-top:3px;font-weight:700;}
+.locs-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 18px;}
+.loc-chip{background:#fff;border:2px solid #D8B4FE;border-radius:var(--radius);padding:11px 8px;text-align:center;font-size:12px;font-weight:900;color:var(--grape2);box-shadow:var(--shadow);transition:all .2s;}
+.loc-chip.cur{background:linear-gradient(135deg,var(--mint),var(--sky));border-color:transparent;color:#fff;}
+.spy-actions{padding:0 18px;display:flex;flex-direction:column;gap:10px;margin-top:auto;}
+.vote-screen{display:none;flex-direction:column;gap:12px;padding:0 18px;}
+.vote-screen.active{display:flex;}
+.vote-title{text-align:center;font-size:18px;font-weight:900;color:var(--grape2);padding:8px 0;}
+.vote-list{display:flex;flex-direction:column;gap:9px;}
+.vote-item{display:flex;align-items:center;gap:12px;background:#fff;border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;border:3px solid transparent;transition:all .2s;font-size:15px;font-weight:900;}
+.vote-item:active{transform:scale(.97);}
+.vote-item.selected{border-color:var(--coral);background:#FFF0EE;color:var(--coral2);}
+.vote-submitted{text-align:center;padding:20px;font-size:16px;font-weight:900;color:var(--mint2);}
+
+/* ═══════════════════════════════════════════
+   SCREEN 6 — SPEED
+   ═══════════════════════════════════════════ */
+#s-speed{padding-top:110px;padding-bottom:28px;gap:16px;align-items:center;background:linear-gradient(180deg,#E8F8F5 0%,#D1F2EB 100%);}
+.speed-instr{text-align:center;padding:0 18px;width:100%;}
+.speed-instr h3{font-size:19px;font-weight:900;color:var(--mint2);}
+.speed-instr p{font-size:13px;color:var(--text-dim);margin-top:3px;font-weight:700;}
+.prog-row{display:flex;align-items:center;gap:4px;padding:0 18px;width:100%;max-width:400px;}
+.prog-d{flex:1;height:7px;border-radius:4px;background:var(--bg3);transition:background .18s;}
+.prog-d.done{background:var(--mint);}
+.prog-d.current{background:var(--peach);}
+.num-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:0 14px;width:100%;max-width:400px;}
+.nbtn{aspect-ratio:1;border-radius:var(--radius);border:none;font-family:'Tajawal',sans-serif;font-size:22px;font-weight:900;cursor:pointer;transition:transform .12s;display:flex;align-items:center;justify-content:center;touch-action:manipulation;-webkit-user-select:none;user-select:none;box-shadow:var(--shadow);}
+.nbtn.idle:active{transform:scale(.86);}
+.nbtn.ok{animation:okPop .28s var(--ease);}
+.nbtn.bad{animation:badShake .28s ease;}
+.nbtn.done{opacity:.5;pointer-events:none;transform:scale(.9);}
+.nbtn.locked{opacity:.25;cursor:not-allowed;pointer-events:none;}
+@keyframes okPop{50%{transform:scale(1.22);}}
+@keyframes badShake{25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+.pen-overlay{position:fixed;inset:0;z-index:500;background:rgba(255,107,107,.22);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;}
+.pen-overlay.show{display:flex;}
+.pen-box{background:#fff;border:3px solid var(--coral);border-radius:var(--radius-lg);padding:28px 36px;text-align:center;box-shadow:var(--shadow-lg);}
+.pen-box h3{font-size:22px;font-weight:900;color:var(--coral2);}
+.pen-box p{font-size:13px;color:var(--text-dim);margin-top:6px;font-weight:700;}
+.pen-cd{font-size:54px;font-weight:900;color:var(--coral2);font-variant-numeric:tabular-nums;margin-top:4px;}
+.punishment-card{background:linear-gradient(135deg,var(--coral),var(--peach));border-radius:var(--radius-lg);padding:24px;margin:0 18px;text-align:center;box-shadow:var(--shadow-lg);color:#fff;animation:punishIn .4s var(--ease);display:none;}
+.punishment-card.show{display:block;}
+@keyframes punishIn{from{transform:scale(.5) rotate(-10deg);opacity:0;}to{transform:scale(1) rotate(0);opacity:1;}}
+.punishment-card .pun-emoji{font-size:60px;display:block;margin-bottom:8px;}
+.punishment-card h3{font-size:22px;font-weight:900;}
+.punishment-card p{font-size:14px;opacity:.9;margin-top:4px;font-weight:700;}
+
+/* ── WINNER OVERLAY ── */
+.win-overlay{position:fixed;inset:0;z-index:9700;background:linear-gradient(160deg,rgba(255,253,245,.97),rgba(255,248,220,.97));backdrop-filter:blur(12px);display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px 18px 80px;overflow-y:auto;gap:14px;}
+.win-overlay.show{display:flex;animation:screenIn .4s var(--ease);}
+.win-overlay .we{font-size:90px;margin-top:28px;}
+.win-overlay h2{font-size:28px;font-weight:900;color:var(--coral2);}
+.win-overlay > p{font-size:15px;color:var(--text-dim);font-weight:700;}
+.win-actions{display:flex;flex-direction:column;gap:10px;width:100%;max-width:380px;}
+.lb{display:flex;flex-direction:column;gap:8px;width:100%;max-width:380px;}
+.lb-row{display:flex;align-items:center;gap:12px;background:#fff;border-radius:var(--radius);padding:13px 16px;box-shadow:var(--shadow);}
+.lb-row.me{background:linear-gradient(135deg,#FFF9E3,#FFF0BC);border:2px solid var(--sun2);}
+.lb-row.bot-row{border-right:3px solid var(--grape);}
+.lb-rank{font-size:20px;font-weight:900;width:28px;text-align:center;}
+.lb-name{flex:1;font-weight:700;font-size:13px;}
+.lb-pts{font-size:12px;color:var(--mint2);font-weight:900;}
+.lb-time{font-size:11px;color:var(--text-dim);font-weight:700;font-variant-numeric:tabular-nums;}
+</style>
+</head>
+<body>
+
+<script>
+var firebaseConfig={
+  apiKey:"AIzaSyAV0r_EOnlNu0d4VH3dbS4VuPhNQG-H3pA",
+  authDomain:"jeopardy-12ac5.firebaseapp.com",
+  projectId:"jeopardy-12ac5",
+  storageBucket:"jeopardy-12ac5.firebasestorage.app",
+  messagingSenderId:"484024375013",
+  appId:"1:484024375013:web:08a702f4bade0fa9080534"
+};
+firebase.initializeApp(firebaseConfig);
+var db=firebase.firestore();
+
+/* ── DEBUG: test Firebase connection on page load ── */
+window.addEventListener('load', function(){
+  db.collection('_test').doc('ping').set({t: Date.now()})
+    .then(function(){
+      console.log('✅ Firebase متصل بنجاح');
+      showFirebaseStatus('connected');
+    })
+    .catch(function(e){
+      console.error('❌ Firebase Error:', e.code, e.message);
+      showFirebaseStatus(e.code || e.message);
+    });
+});
+
+function showFirebaseStatus(status){
+  var el = document.getElementById('firebase-status');
+  if(!el) return;
+  if(status === 'connected'){
+    el.innerHTML = '✅ Firebase متصل — يمكنك البدء!';
+    el.style.background = '#d4edda';
+    el.style.color = '#155724';
+    el.style.borderColor = '#c3e6cb';
+    setTimeout(function(){ el.style.display='none'; }, 3000);
+  } else {
+    var msg = status;
+    if(status === 'permission-denied') msg = '❌ Firestore Rules تمنع الوصول — افتح Firebase Console وغيّر Rules للاختبار';
+    else if(status && status.includes('offline')) msg = '❌ لا يوجد اتصال بالإنترنت';
+    else msg = '❌ خطأ Firebase: ' + status;
+    el.innerHTML = msg + '<br><small style="font-size:11px;display:block;margin-top:6px;">افتح Console في المتصفح (F12) لمزيد من التفاصيل</small>';
+    el.style.background = '#f8d7da';
+    el.style.color = '#721c24';
+    el.style.borderColor = '#f5c6cb';
+  }
+}
+</script>
+
+<!-- ROLE BADGE -->
+<div id="role-badge">
+  <div class="badge-role" id="badge-role-text">الدور: 👑 المضيف</div>
+  <button class="badge-room-btn" onclick="copyRoomLink()">نسخ الرابط 🔗</button>
+</div>
+<div id="toast"></div>
+<div id="cd-splash"><div class="cd-num" id="cd-num">3</div><p>استعد!</p></div>
+
+<!-- ══════════════════════════ SCREEN 1 — ENTRY ══════════════════════════ -->
+<div id="s-entry" class="screen active">
+  <!-- Firebase Status Banner -->
+  <div id="firebase-status" style="
+    width:100%;max-width:420px;margin-bottom:12px;
+    background:#fff3cd;color:#856404;
+    border:1.5px solid #ffc107;border-radius:12px;
+    padding:12px 16px;font-size:13px;font-weight:700;
+    text-align:center;line-height:1.5;
+    position:relative;z-index:1;
+  ">⏳ جاري الاتصال بـ Firebase…</div>
+  <div class="entry-logo">
+    <span class="logo-emoji">🎮</span>
+    <h1>ألعاب أبو ضحيان</h1>
+    <p>منصة ألعاب جماعية مزامنة لحظياً</p>
+  </div>
+  <div class="entry-form">
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('create')">إنشاء غرفة 👑</button>
+      <button class="tab-btn"        onclick="switchTab('join')">دخول غرفة 🎮</button>
+    </div>
+    <div class="panel active" id="panel-create">
+      <input class="inp" type="text"   id="host-name"   placeholder="اسمك (المضيف)" maxlength="20">
+      <input class="inp" type="number" id="max-players" placeholder="الحد الأقصى للاعبين (2–10)" min="2" max="10" value="6">
+      <button class="btn btn-sun" onclick="createRoom()">إنشاء الغرفة 🚀</button>
+    </div>
+    <div class="panel" id="panel-join">
+      <input class="inp" type="text" id="player-name"  placeholder="اسمك" maxlength="20">
+      <input class="inp" type="text" id="join-room-id" placeholder="كود الغرفة (4 خانات)" maxlength="4"
+             style="text-align:center;font-size:28px;font-weight:900;letter-spacing:8px;">
+      <button class="btn btn-sky" onclick="joinRoom()">دخول الغرفة 🎮</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ SCREEN 2 — HUB ══════════════════════════ -->
+<div id="s-hub" class="screen">
+  <div class="hub-top">
+    <h2>اختر اللعبة 🎯</h2>
+    <p id="hub-subtitle">في انتظار اللاعبين…</p>
+  </div>
+  <div class="players-row" id="players-row"></div>
+  <div class="hub-lb-wrap">
+    <div class="hub-lb-title">🏆 لوحة المتصدرين</div>
+    <div class="hub-lb" id="hub-lb"></div>
+  </div>
+  <div class="info-cards" id="host-info-cards" style="display:none;">
+    <div class="info-card">
+      <p>كود الغرفة</p>
+      <div style="font-size:28px;font-weight:900;color:var(--coral2);letter-spacing:6px;" id="room-code-disp">----</div>
+      <button class="btn btn-ghost btn-sm" onclick="copyRoomLink()" style="margin-top:8px;">نسخ الرابط 🔗</button>
+    </div>
+  </div>
+  <div class="bot-card hidden" id="bot-card">
+    <div class="bot-card-top">
+      <span>🤖 لاعبون آليون (Bots)</span>
+      <span class="bot-count-chip" id="bot-count-label">0 bots</span>
+    </div>
+    <div class="bot-btn-row">
+      <button class="btn-bot-add" onclick="addBot()">➕ إضافة Bot</button>
+      <button class="btn-bot-rem" id="btn-rem-bot" onclick="removeBot()" disabled>➖ إزالة Bot</button>
+    </div>
+  </div>
+  <div class="game-cards">
+    <div class="gcard gcard-bomb" onclick="openOnboard('bomb')">
+      <div class="gcard-shine"></div><div class="gcard-badge">2–10 لاعبين</div>
+      <span class="gcard-emoji">💣</span><h3>الهروب من القنبلة</h3>
+      <p>المضيف يحكم — من تنفجر في يده يخسر!</p>
+    </div>
+    <div class="gcard gcard-spy" onclick="openOnboard('spy')">
+      <div class="gcard-shine"></div><div class="gcard-badge">3–10 لاعبين</div>
+      <span class="gcard-emoji">🕵️‍♂️</span><h3>المحقق والجاسوس</h3>
+      <p>اكشف الجاسوس أو اختبئ بين اللاعبين!</p>
+    </div>
+    <div class="gcard gcard-speed" onclick="openOnboard('speed')">
+      <div class="gcard-shine"></div><div class="gcard-badge">2–10 لاعبين</div>
+      <span class="gcard-emoji">⚡</span><h3>معركة الأرقام السريعة</h3>
+      <p>اضغط الأرقام تصاعدياً بأسرع ما يمكن!</p>
+    </div>
+  </div>
+  <div class="master-bar flex-col" id="master-bar" style="display:none;">
+    <div class="divider"></div>
+    <button class="btn btn-ghost btn-sm" style="color:var(--coral2);border-color:var(--coral);" onclick="resetAll()">🔄 تصفير كل شيء</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════ SCREEN 3 — ONBOARDING ══════════════════════════ -->
+<div id="s-onboard" class="screen">
+  <div class="onboard-head">
+    <span class="ob-emoji" id="ob-emoji">💣</span>
+    <h2 id="ob-title">اللعبة</h2>
+    <p  id="ob-desc">وصف اللعبة</p>
+  </div>
+  <div class="how-list" id="how-list"></div>
+  <div class="onboard-actions">
+    <div id="host-start-wrap">
+      <button class="btn btn-sun" onclick="startSelectedGame()">بدء اللعبة! 🚀</button>
+    </div>
+    <div id="player-wait-wrap" class="hidden">
+      <div class="wait-box">
+        <div class="spinner"></div><h3>جاهز! ✅</h3>
+        <p>في انتظار المضيف لبدء اللعبة…</p>
+      </div>
+    </div>
+    <button class="btn btn-ghost" onclick="goBackToHub()">⬅️ رجوع</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════ SCREEN 4 — BOMB ══════════════════════════ -->
+<div id="s-bomb" class="screen">
+  <div class="gtopbar">
+    <span class="gt-title">💣 الهروب من القنبلة</span>
+    <span class="gt-timer" id="bomb-main-timer-top">--</span>
+  </div>
+
+  <!-- SETUP PANEL — shown to host before round starts -->
+  <div class="bomb-setup" id="bomb-setup-panel">
+    <h4>⏱️ اختر وقت انفجار القنبلة</h4>
+    <div class="time-options">
+      <button class="time-opt" data-sec="30" onclick="selectBombTime(30)">30 ث</button>
+      <button class="time-opt selected" data-sec="45" onclick="selectBombTime(45)">45 ث</button>
+      <button class="time-opt" data-sec="60" onclick="selectBombTime(60)">60 ث</button>
+    </div>
+    <button class="btn btn-coral" onclick="launchBombRound()">🚀 إطلاق القنبلة!</button>
+  </div>
+
+  <!-- GAME PANEL — shown when round is live -->
+  <div id="bomb-game-panel" class="hidden" style="display:flex;flex-direction:column;align-items:center;gap:18px;width:100%;padding-bottom:16px;">
+    <!-- Dual timer strip -->
+    <div class="bomb-timer-row">
+      <div class="bomb-timer-card main-t">
+        <div class="btc-label">⏳ وقت القنبلة</div>
+        <div class="btc-val danger" id="bomb-main-timer">45</div>
+      </div>
+      <div class="bomb-timer-card sub-t">
+        <div class="btc-label">💬 وقت التفكير</div>
+        <div class="btc-val sky" id="bomb-sub-timer">10</div>
+      </div>
+    </div>
+
+    <!-- Category card -->
+    <div class="bomb-cat">
+      <div class="bc-label">الفئة والحرف</div>
+      <div class="bc-val" id="bomb-cat-val">…</div>
+      <div class="bc-char" id="bomb-char-val"></div>
+    </div>
+
+    <!-- Bomb animation + status -->
+    <div class="bomb-arena">
+      <div class="bomb-icon" id="bomb-icon">💣</div>
+      <div class="bomb-status" id="bomb-status">جاري اللعب…</div>
+    </div>
+
+    <!-- HOST ONLY: pass button -->
+    <button class="btn-pass-host hidden" id="btn-pass-host" onclick="hostPassBomb()">
+      ✅ إجابة صحيحة — مرر القنبلة ➡️
+    </button>
+
+    <!-- HOST ONLY: direct eliminate -->
+    <button class="btn btn-coral btn-sm hidden" id="btn-explode-now" onclick="hostExplodeNow()"
+            style="width:auto;max-width:240px;margin-top:-8px;">
+      💥 لم يجب — فجّر القنبلة
+    </button>
+
+    <!-- Players list -->
+    <div class="bomb-players" id="bomb-players"></div>
+
+    <!-- Host round controls -->
+    <div id="bomb-host-bar" class="hidden px flex-col" style="margin-top:auto;width:100%;">
+      <div class="divider"></div>
+      <button class="btn btn-ghost btn-sm" onclick="startBombRound()">🔄 جولة جديدة</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--text-dim);" onclick="endGame()">↩️ إنهاء اللعبة</button>
+    </div>
+  </div>
+
+  <!-- Explosion overlay -->
+  <div class="expl-overlay" id="expl-overlay">
+    <div class="ex-e">💥</div>
+    <h2>انفجرت!</h2>
+    <p id="expl-msg">خسر هذه الجولة!</p>
+    <div class="punishment-card show" id="expl-punishment" style="margin:0;max-width:320px;">
+      <span class="pun-emoji" id="expl-pun-emoji">💪</span>
+      <h3 id="expl-pun-title">بوش أب!</h3>
+      <p  id="expl-pun-desc">10 بوش أب الآن أمام الجماعة!</p>
+    </div>
+    <button class="btn btn-ghost" style="max-width:230px;margin-top:8px;" onclick="hideExplosion()">حسناً 😔</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════ SCREEN 5 — SPY ══════════════════════════ -->
+<div id="s-spy" class="screen">
+  <div class="gtopbar">
+    <span class="gt-title">🕵️ الجاسوس الخفي</span>
+    <span class="gt-timer" id="spy-topbar-t">05:00</span>
+  </div>
+  <div id="spy-role-wrap"></div>
+  <div id="spy-host-panel" class="spy-host-panel hidden">
+    <h4>👑 لوحة تحكم المضيف (سرية)</h4>
+    <div id="spy-host-roles-list"></div>
+    <div id="spy-vote-results" class="spy-vote-bar hidden"></div>
+  </div>
+  <div class="spy-timer-sec">
+    <div class="spy-big-t" id="spy-big-t">05:00</div>
+    <div class="spy-t-label">الوقت المتبقي للتحقيق</div>
+  </div>
+  <div style="font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;padding:0 18px;margin-bottom:2px;font-weight:900;">الأماكن المحتملة</div>
+  <div class="locs-grid" id="locs-grid"></div>
+  <div class="vote-screen" id="vote-screen">
+    <div class="vote-title">🗳️ صوّت: من هو الجاسوس؟</div>
+    <div class="vote-list" id="vote-list"></div>
+  </div>
+  <div class="spy-actions hidden" id="spy-host-bar">
+    <div class="divider" style="margin-bottom:4px;"></div>
+    <button class="btn btn-coral" id="btn-start-vote" onclick="startVoting()">🗳️ بدء التصويت السري</button>
+    <button class="btn btn-grape" onclick="revealSpy()">🔍 إعلان النتيجة النهائية</button>
+    <button class="btn btn-ghost" onclick="startSpyRound()">🔄 جولة جديدة</button>
+    <button class="btn btn-ghost btn-sm" style="color:var(--text-dim);" onclick="endGame()">↩️ إنهاء اللعبة</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════ SCREEN 6 — SPEED ══════════════════════════ -->
+<div id="s-speed" class="screen">
+  <div class="gtopbar">
+    <span class="gt-title">⚡ معركة الأرقام</span>
+    <span class="gt-timer" id="speed-elapsed">00:00</span>
+  </div>
+  <div class="speed-instr">
+    <h3 id="speed-instr-txt">اضغط الأرقام من 1 إلى 10 تصاعدياً!</h3>
+    <p>التالي: <strong id="speed-next-num">1</strong></p>
+  </div>
+  <div class="prog-row" id="prog-row"></div>
+  <div class="num-grid"  id="num-grid"></div>
+  <div class="punishment-card" id="punishment-card">
+    <span class="pun-emoji" id="pun-emoji">😵</span>
+    <h3 id="pun-title">عقاب الخاسر!</h3>
+    <p  id="pun-desc">عقوبتك الآن!</p>
+  </div>
+  <div id="speed-host-bar" class="hidden px flex-col" style="margin-top:auto;">
+    <div class="divider"></div>
+    <button class="btn btn-ghost btn-sm" onclick="startSpeedRound()">🔄 جولة جديدة</button>
+    <button class="btn btn-ghost btn-sm" style="color:var(--text-dim);" onclick="endGame()">↩️ إنهاء اللعبة</button>
+  </div>
+  <div class="pen-overlay" id="pen-overlay">
+    <div class="pen-box"><h3>⛔ خطأ!</h3><p>محظور لمدة ثانيتين</p><div class="pen-cd" id="pen-cd">2</div></div>
+  </div>
+</div>
+
+<!-- WINNER OVERLAY -->
+<div class="win-overlay" id="win-overlay">
+  <div class="we" id="win-emoji">🏆</div>
+  <h2 id="win-title">أنت الفائز!</h2>
+  <p  id="win-desc"></p>
+  <div class="lb" id="win-lb"></div>
+  <div class="win-actions" style="margin-top:8px;">
+    <button class="btn btn-sun" onclick="hideWinner()">رائع! 🎉</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════ JAVASCRIPT ══════════════════════════ -->
+<script>
+/* ════════════════════════════════════
+   STATE
+   ════════════════════════════════════ */
+var S={
+  roomId:null,playerId:null,playerName:null,isHost:false,
+  players:{},roomData:{},unsub:null,selectedGame:null,
+  /* bomb */
+  bombMainIv:null,bombSubIv:null,bombExplodeTO:null,
+  bombSelectedSec:45,        /* host-chosen total time */
+  bombSubSec:10,             /* think-timer seconds per player */
+  bombSubRemaining:10,       /* current sub-timer countdown */
+  botBombTO:null,
+  /* spy */
+  spyIv:null,
+  /* speed */
+  speedNext:1,speedStart:null,speedElapsIv:null,
+  speedLocked:false,speedPenTO:null,speedPenIv:null,speedInited:false,
+  botSpeedState:{},
+  /* audio */
+  audioCtx:null,bombAudioIv:null,
+  /* vote */
+  myVote:null,voteSubmitted:false
+};
+
+/* ════════════════════════════════════
+   STATIC DATA
+   ════════════════════════════════════ */
+var AVATARS=['🦁','🐯','🦊','🐺','🦝','🐸','🐼','🐨','🦄','🐲','🦋','🐙','🦈','🦅','🦉','🐬','🦓','🦏','🐘','🦒'];
+var BOT_NAMES=['أبو مشاري 🤖','الكابتن 🤖','المحنك 🤖','الكمبيوتر 🤖','أبو ربيع 🤖','السريع 🤖','المتحدي 🤖','روبوت الخير 🤖'];
+var BOT_AVATARS=['🤖','🦾','🧠'];
+
+/* فئات القنبلة — محلية وشبابية */
+var BOMB_CATS=[
+  'دول عربية','دول أوروبية','دول آسيوية',
+  'مدن في المملكة','مدن خليجية','مدن أوروبية مشهورة',
+  'أحياء شمال الرياض','أحياء جنوب الرياض','أحياء غرب الرياض','أحياء شرق الرياض',
+  'حيوانات البحر','حيوانات الغابة','حيوانات الصحراء',
+  'أكلات شعبية سعودية','أكلات خليجية','أكلات سريعة (فاست فود)',
+  'ماركات سيارات يابانية','ماركات سيارات ألمانية','سيارات فارهة','ماركات سيارات كورية',
+  'تطبيقات على الجوال','رياضيون سعوديون','أندية دوري روشن','ماركات ملابس مشهورة'
+];
+
+/* حروف عربية للسحب العشوائي */
+var ARABIC_LETTERS=[
+  'الألف','الباء','التاء','الثاء','الجيم','الحاء','الخاء',
+  'الدال','الذال','الراء','الزاي','السين','الشين','الصاد',
+  'الضاد','الطاء','الظاء','العين','الغين','الفاء','القاف',
+  'الكاف','اللام','الميم','النون','الهاء','الواو','الياء'
+];
+
+var SPY_LOCS=[
+  {n:'مطار دولي',i:'✈️'},{n:'مستشفى',i:'🏥'},{n:'مخيم صحراوي',i:'🏕️'},
+  {n:'ملعب كرة قدم',i:'⚽'},{n:'فندق فاخر',i:'🏨'},{n:'مطعم شعبي',i:'🍽️'},
+  {n:'ديوانية',i:'🪑'},{n:'دار سينما',i:'🎬'},{n:'جامعة',i:'🎓'},
+  {n:'محطة قطار',i:'🚆'},{n:'شاطئ',i:'🏖️'},{n:'قاعدة عسكرية',i:'🪖'},
+  {n:'مركز تسوق',i:'🏬'},{n:'مزرعة',i:'🌾'},{n:'مسبح',i:'🏊'}
+];
+
+var GAME_META={
+  bomb:{
+    emoji:'💣',title:'الهروب من القنبلة',
+    desc:'المضيف هو الحكم! الكل يجيب بصوت عالٍ، والمضيف يمرر القنبلة أو يفجّرها.',
+    steps:[
+      {i:'⏱️',t:'المضيف يختار الوقت', d:'قبل البدء يختار المضيف مدة القنبلة الكلية (30، 45، أو 60 ثانية).'},
+      {i:'🎯',t:'سؤال بحرف عشوائي',  d:'تظهر فئة + حرف عشوائي (مثال: مدينة تبدأ بحرف الراء).'},
+      {i:'💣',t:'القنبلة تنطلق',      d:'تظهر القنبلة عند لاعب عشوائي ويبدأ عداد 10 ثوانٍ للتفكير.'},
+      {i:'🗣️',t:'قل الإجابة',         d:'اللاعب يقول إجابته بصوت عالٍ في المجلس قبل انتهاء الـ10 ثوانٍ.'},
+      {i:'👑',t:'المضيف يقرر',         d:'إجابة صحيحة → المضيف يضغط "مرر". خطأ أو صمت → المضيف يفجّر!'},
+      {i:'💥',t:'الانفجار',            d:'من تنفجر القنبلة عنده يهتز جواله ويخسر الجولة مع عقاب!'}
+    ]
+  },
+  spy:{
+    emoji:'🕵️‍♂️',title:'المحقق والجاسوس',
+    desc:'الجميع يعرف المكان ما عدا الجاسوس! اكشفوه بالتصويت السري.',
+    steps:[
+      {i:'🗺️',t:'اختيار المكان', d:'يُختار مكان سرياً ويُوزَّع الأدوار على الجوالات.'},
+      {i:'🕵️',t:'الجاسوس',      d:'لاعب واحد لا يعرف المكان — يجب أن يتخفى!'},
+      {i:'💬',t:'التحقيق',       d:'خمس دقائق من الأسئلة الذكية للكشف.'},
+      {i:'🗳️',t:'تصويت سري',    d:'كل لاعب يصوّت على من يشك فيه — المضيف يرى النتائج.'},
+      {i:'🔍',t:'الإعلان',       d:'المضيف يعلن النتيجة النهائية للمجلس.'}
+    ]
+  },
+  speed:{
+    emoji:'⚡',title:'معركة الأرقام السريعة',
+    desc:'أرقام 1–10 بترتيب عشوائي. الأسرع يفوز ويأخذ 100 نقطة!',
+    steps:[
+      {i:'🔢',t:'شبكة عشوائية',  d:'أرقام 1–10 بترتيب وألوان مختلفة لكل لاعب.'},
+      {i:'1️⃣',t:'اضغط بالترتيب',d:'ابحث عن 1 ثم 2 ثم 3… حتى 10 بأقصى سرعة.'},
+      {i:'⛔',t:'عقوبة الخطأ',   d:'الضغط الخطأ = قفل ثانيتين.'},
+      {i:'🏆',t:'النقاط',         d:'🥇=100 | 🥈=50 | 🥉=25 | الخاسر = عقاب! 😂'}
+    ]
+  }
+};
+
+var PUNISHMENTS=[
+  {e:'💪',t:'بوش أب!',d:'10 بوش أب الآن أمام الجماعة!'},
+  {e:'🐔',t:'صوّت صوت الدجاجة!',d:'تصوّت صوت دجاجة 3 مرات بصوت عالٍ!'},
+  {e:'🕺',t:'رقصة العار!',d:'ترقص لمدة 10 ثواني أمام الجماعة!'},
+  {e:'🤸',t:'بريك دانس!',d:'تحاول تعمل بريك دانس لمدة 5 ثواني!'},
+  {e:'😤',t:'اعترف بخسارتك!',d:'تقول "أنا الخاسر وأقبل الهزيمة" بصوت عالٍ!'},
+  {e:'🐸',t:'اقفز 10 قفزات!',d:'تقفز 10 قفزات على قدم واحدة!'},
+  {e:'🤣',t:'النكتة القسرية!',d:'تقول نكتة والجماعة تحكم عليها!'},
+  {e:'🥊',t:'جلدة على اليد!',d:'كل لاعب يعطيك جلدة خفيفة على معصمك!'},
+  {e:'📸',t:'صورة العار!',d:'تسوي أبشع تعبير ويصورونك!'},
+  {e:'🎤',t:'الغناء القسري!',d:'تغني 10 ثواني من أي أغنية!'},
+  {e:'💦',t:'رشة ماء!',d:'واحد من الجماعة يرش على وجهك شوية ماء!'},
+  {e:'🐶',t:'صوّت كلب!',d:'تنبح 3 مرات بصوت عالٍ!'},
+  {e:'🎭',t:'مثّل شخصية!',d:'تمثّل شخصية يختارها الجماعة لمدة 30 ثانية!'}
+];
+
+var SPEED_POINTS=[100,50,25];
+
+/* ════════════════════════════════════
+   UTILITIES
+   ════════════════════════════════════ */
+function genCode(){var c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i<4;i++)s+=c[Math.floor(Math.random()*c.length)];return s;}
+function genId(n){return Math.random().toString(36).substr(2,n).toUpperCase();}
+function rand(a){return a[Math.floor(Math.random()*a.length)];}
+function shuffle(a){var b=[].concat(a);for(var i=b.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=b[i];b[i]=b[j];b[j]=t;}return b;}
+function fmtTime(ms){var s=Math.max(0,Math.floor(ms/1000));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+function showScreen(id){document.querySelectorAll('.screen').forEach(function(e){e.classList.remove('active');});document.getElementById(id).classList.add('active');}
+var _tTO=null;
+function toast(msg,dur){dur=dur||2600;var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(_tTO);_tTO=setTimeout(function(){el.classList.remove('show');},dur);}
+function vibrate(p){if('vibrate' in navigator)navigator.vibrate(p);}
+function copyRoomLink(){var url=location.origin+location.pathname+'?room='+S.roomId;navigator.clipboard.writeText(url).then(function(){toast('تم نسخ الرابط! 🔗');}).catch(function(){toast('الرابط: '+url,5000);});}
+function roomRef(){return db.collection('rooms').doc(S.roomId);}
+function isBot(pid){return !!(S.players[pid]&&S.players[pid].isBot);}
+function getBotIds(){return Object.keys(S.players).filter(function(pid){return isBot(pid);});}
+function randPunishment(){return rand(PUNISHMENTS);}
+
+/* generate bomb question string */
+function makeBombQuestion(cat,letter){
+  return cat+' تبدأ بحرف "'+letter+'"';
+}
+
+/* ════════════════════════════════════
+   CLEANUP
+   ════════════════════════════════════ */
+function cleanup(){
+  clearInterval(S.bombMainIv);clearInterval(S.bombSubIv);clearTimeout(S.bombExplodeTO);
+  S.bombMainIv=S.bombSubIv=S.bombExplodeTO=null;
+  clearInterval(S.spyIv);S.spyIv=null;
+  clearInterval(S.speedElapsIv);clearTimeout(S.speedPenTO);clearInterval(S.speedPenIv);
+  S.speedElapsIv=S.speedPenTO=S.speedPenIv=null;
+  S.speedLocked=false;S.speedStart=null;S.speedNext=1;S.speedInited=false;
+  stopBombAudio();
+  clearTimeout(S.botBombTO);S.botBombTO=null;S.botSpeedState={};
+  S.myVote=null;S.voteSubmitted=false;
+  var elems=['pen-overlay','cd-splash','vote-screen'];
+  elems.forEach(function(id){var el=document.getElementById(id);if(el)el.classList.remove('show','active');});
+  var punCard=document.getElementById('punishment-card');if(punCard)punCard.classList.remove('show');
+}
+
+/* ════════════════════════════════════
+   ENTRY
+   ════════════════════════════════════ */
+function switchTab(tab){
+  var btns=document.querySelectorAll('.tab-btn');
+  btns[0].classList.toggle('active',tab==='create');btns[1].classList.toggle('active',tab==='join');
+  document.getElementById('panel-create').classList.toggle('active',tab==='create');
+  document.getElementById('panel-join').classList.toggle('active',tab==='join');
+}
+async function createRoom(){
+  var name=document.getElementById('host-name').value.trim();
+  var max=parseInt(document.getElementById('max-players').value)||6;
+  if(!name){toast('أدخل اسمك أولاً');return;}
+  if(max<2)max=2;if(max>10)max=10;
+  var roomId=genCode(),pid=genId(8),av=rand(AVATARS);
+  S.roomId=roomId;S.playerId=pid;S.playerName=name;S.isHost=true;
+  var pData={id:pid,name:name,avatar:av,isHost:true,online:true,score:0,joinedAt:Date.now(),isBot:false};
+  var players={};players[pid]=pData;
+  try{
+    await roomRef().set({hostId:pid,maxPlayers:max,status:'lobby',currentGame:null,gameState:{},players:players,votes:{},createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    history.replaceState({},'','?room='+roomId);setupBadge();subscribeRoom();showScreen('s-hub');
+  }catch(e){console.error(e);toast('خطأ في إنشاء الغرفة');}
+}
+async function joinRoom(){
+  var name=document.getElementById('player-name').value.trim();
+  var roomId=document.getElementById('join-room-id').value.trim().toUpperCase();
+  if(!name){toast('أدخل اسمك أولاً');return;}
+  if(!roomId||roomId.length!==4){toast('أدخل كود الغرفة (4 خانات)');return;}
+  try{
+    var snap=await db.collection('rooms').doc(roomId).get();
+    if(!snap.exists){toast('الغرفة غير موجودة ❌');return;}
+    var d=snap.data();
+    if(Object.keys(d.players||{}).length>=d.maxPlayers){toast('الغرفة ممتلئة 🚫');return;}
+    if(d.status==='playing'){toast('اللعبة بدأت بالفعل ⚠️');return;}
+    var pid=genId(8),av=rand(AVATARS);
+    S.roomId=roomId;S.playerId=pid;S.playerName=name;S.isHost=false;
+    var upd={};upd['players.'+pid]={id:pid,name:name,avatar:av,isHost:false,online:true,score:0,joinedAt:Date.now(),isBot:false};
+    await db.collection('rooms').doc(roomId).update(upd);
+    history.replaceState({},'','?room='+roomId);setupBadge();subscribeRoom();showScreen('s-hub');
+  }catch(e){console.error(e);toast('خطأ في الدخول للغرفة');}
+}
+function autoJoin(){var p=new URLSearchParams(location.search);var r=p.get('room');if(r){document.getElementById('join-room-id').value=r.toUpperCase();switchTab('join');}}
+
+/* ════════════════════════════════════
+   BADGE + SUBSCRIBE
+   ════════════════════════════════════ */
+function setupBadge(){
+  document.getElementById('badge-role-text').innerHTML=S.isHost?'<span class="badge-host">👑 المضيف</span>':'<span class="badge-player">🎮 متسابق</span>';
+  document.getElementById('role-badge').classList.add('visible');
+}
+function subscribeRoom(){
+  if(S.unsub){S.unsub();S.unsub=null;}
+  S.unsub=roomRef().onSnapshot(function(snap){
+    if(!snap.exists){toast('الغرفة انتهت');return;}
+    var d=snap.data();S.roomData=d;S.players=d.players||{};onRoomUpdate(d);
+  });
+}
+
+/* ════════════════════════════════════
+   MASTER UPDATE
+   ════════════════════════════════════ */
+function onRoomUpdate(d){
+  renderPlayersRow();renderHubLb();updateHubUI(d);
+  var curId=(document.querySelector('.screen.active')||{}).id||'';
+  if(d.status==='lobby'){if(curId!=='s-hub'&&curId!=='s-entry'){cleanup();showScreen('s-hub');}return;}
+  if(d.status==='onboard'){if(!S.isHost&&curId!=='s-onboard'){S.selectedGame=d.currentGame;openOnboard(d.currentGame,false);}return;}
+  if(d.status==='playing'){
+    var gs=d.gameState||{};
+    if(d.currentGame==='bomb')  handleBomb(gs);
+    if(d.currentGame==='spy')   handleSpy(gs,d);
+    if(d.currentGame==='speed') handleSpeed(gs);
+  }
+}
+
+/* ════════════════════════════════════
+   HUB UI
+   ════════════════════════════════════ */
+function renderPlayersRow(){
+  var row=document.getElementById('players-row');
+  var ps=Object.values(S.players).sort(function(a,b){return a.joinedAt-b.joinedAt;});
+  row.innerHTML=ps.map(function(p){
+    return '<div class="player-chip'+(p.isBot?' is-bot':p.online?' online':'')+'"><div class="av">'+p.avatar+'</div><div class="pn">'+p.name+(p.isHost?' 👑':'')+'</div></div>';
+  }).join('');
+}
+function renderHubLb(){
+  var ps=Object.values(S.players).sort(function(a,b){return (b.score||0)-(a.score||0);}).slice(0,5);
+  var medals=['🥇','🥈','🥉','4️⃣','5️⃣'];
+  var lb=document.getElementById('hub-lb');
+  if(!ps.length||ps.every(function(p){return !p.score;})){lb.innerHTML='<div style="text-align:center;font-size:13px;color:var(--text-dim);padding:8px;font-weight:700;">لا توجد نقاط بعد — العب وتصدّر! 🎯</div>';return;}
+  lb.innerHTML=ps.map(function(p,i){return '<div class="hub-lb-row"><span class="hub-lb-rank">'+medals[i]+'</span><span class="hub-lb-name">'+p.avatar+' '+p.name+'</span><span class="hub-lb-score">'+(p.score||0)+' نقطة</span></div>';}).join('');
+}
+function updateHubUI(d){
+  var cnt=Object.keys(d.players||{}).length,botCnt=getBotIds().length;
+  document.getElementById('hub-subtitle').textContent=cnt+' لاعب ('+botCnt+' آلي) | كود: '+S.roomId;
+  var isH=S.isHost;
+  document.getElementById('host-info-cards').style.display=isH?'flex':'none';
+  document.getElementById('room-code-disp').textContent=S.roomId;
+  document.getElementById('bot-card').classList.toggle('hidden',!isH);
+  var mb=document.getElementById('master-bar');mb.style.display=isH?'flex':'none';if(isH)mb.style.flexDirection='column';
+  if(isH){document.getElementById('bot-count-label').textContent=botCnt+' bot'+(botCnt!==1?'s':'');document.getElementById('btn-rem-bot').disabled=(botCnt===0);}
+}
+
+/* ════════════════════════════════════
+   BOTS ADD / REMOVE
+   ════════════════════════════════════ */
+async function addBot(){
+  if(!S.isHost)return;
+  if(Object.keys(S.players).length>=(S.roomData.maxPlayers||10)){toast('الغرفة ممتلئة 🚫');return;}
+  var used=Object.values(S.players).map(function(p){return p.name;});
+  var avail=BOT_NAMES.filter(function(n){return used.indexOf(n)===-1;});
+  if(!avail.length){toast('وصلت للحد الأقصى من الأسماء الآلية');return;}
+  var botId='BOT_'+genId(6),botName=rand(avail),botAv=rand(BOT_AVATARS);
+  var upd={};upd['players.'+botId]={id:botId,name:botName,avatar:botAv,isHost:false,online:true,score:0,joinedAt:Date.now(),isBot:true};
+  await roomRef().update(upd).catch(console.error);toast('تمت إضافة '+botName+'! 🤖');
+}
+async function removeBot(){
+  if(!S.isHost)return;
+  var bots=getBotIds();if(!bots.length)return;
+  var last=bots.sort(function(a,b){return (S.players[a].joinedAt||0)-(S.players[b].joinedAt||0);}).pop();
+  var upd={};upd['players.'+last]=firebase.firestore.FieldValue.delete();
+  await roomRef().update(upd).catch(console.error);toast('تمت الإزالة ✅');
+}
+
+/* ════════════════════════════════════
+   ONBOARDING
+   ════════════════════════════════════ */
+function openOnboard(game,notify){
+  S.selectedGame=game;var m=GAME_META[game];
+  document.getElementById('ob-emoji').textContent=m.emoji;
+  document.getElementById('ob-title').textContent=m.title;
+  document.getElementById('ob-desc').textContent=m.desc;
+  document.getElementById('how-list').innerHTML=m.steps.map(function(s){return '<div class="how-item"><div class="hi-icon">'+s.i+'</div><div class="hi-text"><strong>'+s.t+'</strong><span>'+s.d+'</span></div></div>';}).join('');
+  document.getElementById('host-start-wrap').classList.toggle('hidden',!S.isHost);
+  document.getElementById('player-wait-wrap').classList.toggle('hidden',S.isHost);
+  showScreen('s-onboard');
+  if(notify!==false&&S.isHost)roomRef().update({status:'onboard',currentGame:game}).catch(console.error);
+}
+function goBackToHub(){if(S.isHost)roomRef().update({status:'lobby',currentGame:null,gameState:{},votes:{}}).catch(console.error);showScreen('s-hub');}
+function startSelectedGame(){
+  if(!S.isHost||!S.selectedGame)return;
+  var g=S.selectedGame;
+  if(g==='bomb')  showBombSetup();   /* bomb: show setup panel first */
+  if(g==='spy')   startSpyRound();
+  if(g==='speed') startSpeedRound();
+}
+async function endGame(){if(!S.isHost)return;cleanup();await roomRef().update({status:'lobby',currentGame:null,gameState:{},votes:{}}).catch(console.error);}
+async function resetAll(){
+  if(!S.isHost)return;if(!confirm('تصفير كل شيء؟'))return;cleanup();
+  var upd={status:'lobby',currentGame:null,gameState:{},votes:{}};
+  Object.keys(S.players).forEach(function(pid){upd['players.'+pid+'.score']=0;upd['players.'+pid+'.speedTime']=null;});
+  await roomRef().update(upd).catch(console.error);toast('تم التصفير ✅');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   GAME 1 — BOMB 💣  (Host-Centric / Dual Timer / Letter+Category)
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Host: show setup panel before launching ── */
+function showBombSetup(){
+  showScreen('s-bomb');
+  document.getElementById('bomb-setup-panel').classList.remove('hidden');
+  document.getElementById('bomb-game-panel').classList.add('hidden');
+  document.getElementById('bomb-host-bar').classList.add('hidden');
+  /* Reset selection UI */
+  document.querySelectorAll('.time-opt').forEach(function(b){b.classList.remove('selected');});
+  var defBtn=document.querySelector('.time-opt[data-sec="45"]');if(defBtn)defBtn.classList.add('selected');
+  S.bombSelectedSec=45;
+}
+
+function selectBombTime(sec){
+  S.bombSelectedSec=sec;
+  document.querySelectorAll('.time-opt').forEach(function(b){b.classList.toggle('selected',parseInt(b.dataset.sec)===sec);});
+}
+
+/* ── Host: launch the round after setup ── */
+async function launchBombRound(){
+  if(!S.isHost)return;
+  var pids=Object.keys(S.players);
+  if(pids.length<2){toast('تحتاج لاعبَين على الأقل');return;}
+  cleanup();
+  var cat=rand(BOMB_CATS);
+  var letter=rand(ARABIC_LETTERS);
+  var active=rand(pids);
+  var totalMs=S.bombSelectedSec*1000;
+  var explodeAt=Date.now()+totalMs;
+  await roomRef().update({
+    status:'playing',currentGame:'bomb',
+    gameState:{
+      category:cat,letter:letter,
+      question:makeBombQuestion(cat,letter),
+      activePlayerId:active,
+      playerOrder:pids,
+      explodeAt:explodeAt,
+      totalSec:S.bombSelectedSec,
+      subSec:10,
+      subStartAt:Date.now(),   /* when the current player's sub-timer started */
+      exploded:false,
+      explodedPlayerId:null
+    }
+  }).catch(console.error);
+}
+
+/* ── startBombRound: alias for "new round" button inside game ── */
+async function startBombRound(){showBombSetup();}
+
+/* ── handleBomb: react to every Firestore update ── */
+function handleBomb(gs){
+  if(!gs||!gs.category)return;
+  showScreen('s-bomb');
+  document.getElementById('bomb-setup-panel').classList.add('hidden');
+  document.getElementById('bomb-game-panel').classList.remove('hidden');
+  document.getElementById('bomb-host-bar').classList.toggle('hidden',!S.isHost);
+
+  /* Show question */
+  document.getElementById('bomb-cat-val').textContent=gs.category;
+  document.getElementById('bomb-char-val').textContent='تبدأ بحرف "'+gs.letter+'"';
+  document.getElementById('bomb-main-timer-top').textContent=Math.ceil(Math.max(0,gs.explodeAt-Date.now())/1000)+'s';
+
+  /* Exploded state */
+  if(gs.exploded){
+    cleanup();
+    var loserId=gs.explodedPlayerId;
+    var loser=S.players[loserId]||{};
+    var pun=randPunishment();
+    document.getElementById('expl-pun-emoji').textContent=pun.e;
+    document.getElementById('expl-pun-title').textContent=pun.t;
+    document.getElementById('expl-pun-desc').textContent=pun.d;
+    document.getElementById('expl-msg').textContent=loser.name+' خسر هذه الجولة!';
+    document.getElementById('expl-overlay').classList.add('show');
+    document.body.classList.add('shaking');vibrate([160,80,160,80,320]);
+    setTimeout(function(){document.body.classList.remove('shaking');},900);
+    return;
+  }
+
+  /* Render players */
+  renderBombPlayers(gs.activePlayerId);
+
+  /* Active player */
+  var activeName=(S.players[gs.activePlayerId]||{}).name||'…';
+  var isMyTurn=gs.activePlayerId===S.playerId;
+  var stEl=document.getElementById('bomb-status');
+  var iconEl=document.getElementById('bomb-icon');
+  var hostPassBtn=document.getElementById('btn-pass-host');
+  var hostExplodeBtn=document.getElementById('btn-explode-now');
+
+  if(isMyTurn&&!S.isHost){
+    stEl.textContent='الدور عليك! 🔥 قل الإجابة بصوت عالٍ!';
+    stEl.className='bomb-status mine';
+    iconEl.className='bomb-icon fast';
+    startBombAudio(true);
+  }else if(isBot(gs.activePlayerId)){
+    stEl.textContent='الـ Bot يفكر… 🤖 ('+activeName+')';
+    stEl.className='bomb-status bot-thinking';
+    iconEl.className='bomb-icon';
+    stopBombAudio();
+  }else{
+    stEl.textContent='الدور عند: '+activeName+' ⏳';
+    stEl.className='bomb-status';
+    iconEl.className='bomb-icon';
+    stopBombAudio();
+  }
+
+  /* Host buttons — ONLY host sees them */
+  if(hostPassBtn)hostPassBtn.classList.toggle('hidden',!S.isHost||isBot(gs.activePlayerId));
+  if(hostExplodeBtn)hostExplodeBtn.classList.toggle('hidden',!S.isHost||isBot(gs.activePlayerId));
+
+  /* Start timers (every client runs display; host runs explosion logic) */
+  startDualTimers(gs);
+
+  /* Bot turn: host runs bot logic */
+  if(S.isHost&&isBot(gs.activePlayerId)){scheduleBotBombAnswer(gs);}
+}
+
+/* ── Dual timers ── */
+function startDualTimers(gs){
+  clearInterval(S.bombMainIv);clearInterval(S.bombSubIv);
+  S.bombMainIv=null;S.bombSubIv=null;
+
+  /* Main timer: counts down to explodeAt */
+  function tickMain(){
+    var rem=Math.max(0,gs.explodeAt-Date.now());
+    var el1=document.getElementById('bomb-main-timer');
+    var el2=document.getElementById('bomb-main-timer-top');
+    var s=Math.ceil(rem/1000);
+    if(el1){el1.textContent=s;el1.className='btc-val danger'+(rem<10000?' danger':'');}
+    if(el2){el2.textContent=s+'s';el2.className='gt-timer'+(rem<10000?' t-danger':'');}
+    if(rem<=0){clearInterval(S.bombMainIv);}
+  }
+  tickMain();S.bombMainIv=setInterval(tickMain,350);
+
+  /* Sub timer: resets each time gs.subStartAt changes; counts down from gs.subSec */
+  S.bombSubRemaining=gs.subSec;
+  function tickSub(){
+    var elapsed=Date.now()-gs.subStartAt;
+    var rem=Math.max(0,gs.subSec*1000-elapsed);
+    var el=document.getElementById('bomb-sub-timer');
+    if(el){el.textContent=Math.ceil(rem/1000);el.className='btc-val sky'+(rem<4000?' danger':'');}
+    if(rem<=0){clearInterval(S.bombSubIv);}
+  }
+  tickSub();S.bombSubIv=setInterval(tickSub,350);
+
+  /* Host: schedule main explosion */
+  if(S.isHost){
+    clearTimeout(S.bombExplodeTO);
+    var delayMain=Math.max(0,gs.explodeAt-Date.now());
+    S.bombExplodeTO=setTimeout(async function(){
+      var cgs=S.roomData.gameState||{};if(cgs.exploded)return;
+      await roomRef().update({'gameState.exploded':true,'gameState.explodedPlayerId':cgs.activePlayerId}).catch(console.error);
+    },delayMain);
+  }
+}
+
+/* ── Host manually passes bomb (correct answer) ── */
+async function hostPassBomb(){
+  if(!S.isHost)return;
+  var gs=S.roomData.gameState||{};if(gs.exploded)return;
+  clearTimeout(S.bombExplodeTO);clearTimeout(S.botBombTO);
+  stopBombAudio();vibrate(55);
+  var order=gs.playerOrder||Object.keys(S.players);
+  var ni=(order.indexOf(gs.activePlayerId)+1)%order.length;
+  await roomRef().update({
+    'gameState.activePlayerId':order[ni],
+    'gameState.subStartAt':Date.now()
+  }).catch(console.error);
+}
+
+/* ── Host manually explodes (wrong/no answer) ── */
+async function hostExplodeNow(){
+  if(!S.isHost)return;
+  var gs=S.roomData.gameState||{};if(gs.exploded)return;
+  clearTimeout(S.bombExplodeTO);clearTimeout(S.botBombTO);
+  await roomRef().update({'gameState.exploded':true,'gameState.explodedPlayerId':gs.activePlayerId}).catch(console.error);
+}
+
+/* ── Bot bomb answer: host simulates 2–5s human thinking then auto-passes ── */
+function scheduleBotBombAnswer(gs){
+  clearTimeout(S.botBombTO);S.botBombTO=null;
+  var botId=gs.activePlayerId;
+  var remaining=gs.explodeAt-Date.now();
+  /* Human-like delay: 2000–5000 ms */
+  var delay=2000+Math.floor(Math.random()*3000);
+  if(delay>=remaining){
+    /* Bot won't make it — bomb explodes on him naturally via bombExplodeTO */
+    return;
+  }
+  S.botBombTO=setTimeout(async function(){
+    var cgs=S.roomData.gameState||{};
+    if(cgs.activePlayerId!==botId||cgs.exploded||Date.now()>=cgs.explodeAt)return;
+    /* Bot "answered correctly" — pass to next */
+    var order=cgs.playerOrder||Object.keys(S.players);
+    var ni=(order.indexOf(botId)+1)%order.length;
+    await roomRef().update({'gameState.activePlayerId':order[ni],'gameState.subStartAt':Date.now()}).catch(console.error);
+  },delay);
+}
+
+function renderBombPlayers(activeId){
+  document.getElementById('bomb-players').innerHTML=Object.values(S.players).map(function(p){
+    return '<div class="bchip'+(p.id===activeId?' active':'')+(p.isBot?' is-bot':'')+'">'+p.avatar+' '+p.name+'</div>';
+  }).join('');
+}
+function hideExplosion(){document.getElementById('expl-overlay').classList.remove('show');}
+
+/* ════════════════════════════════════════════════════════════════
+   GAME 2 — SPY 🕵️  (unchanged + secret voting + bots)
+   ════════════════════════════════════════════════════════════════ */
+async function startSpyRound(){
+  if(!S.isHost)return;
+  var pids=Object.keys(S.players);
+  if(pids.length<3){toast('تحتاج 3 لاعبين على الأقل');return;}
+  cleanup();
+  var loc=rand(SPY_LOCS),spyId=rand(pids);
+  var roles={};pids.forEach(function(pid){roles[pid]=pid===spyId?'spy':'player';});
+  await roomRef().update({
+    status:'playing',currentGame:'spy',votes:{},
+    gameState:{locName:loc.n,locIcon:loc.i,spyId:spyId,roles:roles,startAt:Date.now(),duration:5*60*1000,revealed:false,votingOpen:false}
+  }).catch(console.error);
+}
+
+function handleSpy(gs,roomDoc){
+  if(!gs||!gs.locName)return;
+  showScreen('s-spy');
+  document.getElementById('spy-host-bar').classList.toggle('hidden',!S.isHost);
+  var rw=document.getElementById('spy-role-wrap');
+  var isSpy=gs.spyId===S.playerId;
+  var votes=roomDoc.votes||{};
+
+  /* Host panel */
+  var hostPanel=document.getElementById('spy-host-panel');
+  hostPanel.classList.toggle('hidden',!S.isHost);
+  if(S.isHost){
+    var rl=document.getElementById('spy-host-roles-list');
+    rl.innerHTML=Object.values(S.players).map(function(p){
+      var isSp=(gs.roles||{})[p.id]==='spy';
+      return '<div class="spy-player-row"><span class="spr-name">'+p.avatar+' '+p.name+'</span><span class="spr-role '+(isSp?'is-spy-role':'is-player-role')+'">'+(isSp?'الجاسوس 🕵️‍♂️':'لاعب عادي ✅')+'</span></div>';
+    }).join('');
+    var voteWrap=document.getElementById('spy-vote-results');
+    if(gs.votingOpen&&Object.keys(votes).length>0){
+      voteWrap.classList.remove('hidden');
+      var tally={};Object.values(votes).forEach(function(v){tally[v]=(tally[v]||0)+1;});
+      var sorted=Object.keys(tally).sort(function(a,b){return tally[b]-tally[a];});
+      voteWrap.innerHTML='<strong>نتائج الأصوات ('+Object.keys(votes).length+' صوت):</strong><br>'+
+        sorted.map(function(pid){var p=S.players[pid]||{};return p.avatar+' '+p.name+': '+tally[pid]+' صوت';}).join(' | ');
+    }else{voteWrap.classList.add('hidden');}
+    document.getElementById('btn-start-vote').textContent=gs.votingOpen?'⏹️ إيقاف التصويت':'🗳️ بدء التصويت السري';
+  }
+
+  if(gs.revealed){
+    cleanup();
+    var sp=S.players[gs.spyId]||{};
+    rw.innerHTML='<div class="spy-card reveal-card" style="margin:0 18px;"><span class="sc-emoji">🎭</span><div class="sc-label">الجاسوس كان'+(sp.isBot?' (Bot)':'')+'</div><div class="sc-val">'+sp.avatar+' '+sp.name+'</div><div class="sc-hint">المكان السري كان: <strong>'+gs.locIcon+' '+gs.locName+'</strong></div></div>';
+    renderLocGrid(gs.locName,true);document.getElementById('vote-screen').classList.remove('active');return;
+  }
+
+  if(S.isHost){
+    rw.innerHTML='<div class="spy-card loc-card" style="margin:0 18px;"><span class="sc-emoji">👑</span><div class="sc-label">أنت المضيف — ترى كل شيء أعلاه</div><div class="sc-val">'+gs.locIcon+' '+gs.locName+'</div><div class="sc-hint">لوحة تحكمك تظهر الجاسوس ونتائج التصويت الآنية.</div></div>';
+  }else if(isSpy){
+    rw.innerHTML='<div class="spy-card spy-card-r" style="margin:0 18px;"><span class="sc-emoji">🕵️‍♂️</span><div class="sc-label">دورك السري</div><div class="sc-val">أنت الجاسوس! 🤫</div><div class="sc-hint">لا تعرف المكان. استمع جيداً وحاول تخمينه!</div></div>';
+  }else{
+    rw.innerHTML='<div class="spy-card loc-card" style="margin:0 18px;"><span class="sc-emoji">📍</span><div class="sc-label">المكان السري — لا تصرح به!</div><div class="sc-val">'+gs.locIcon+' '+gs.locName+'</div><div class="sc-hint">اكشف الجاسوس! اطرح أسئلة ذكية دون كشف المكان.</div></div>';
+  }
+  renderLocGrid(gs.locName,false);
+  runSpyTimer(gs.startAt,gs.duration);
+  var voteScreen=document.getElementById('vote-screen');
+  if(!S.isHost&&gs.votingOpen){voteScreen.classList.add('active');renderVoteList(votes);}else{voteScreen.classList.remove('active');}
+}
+
+function renderLocGrid(curName,reveal){
+  document.getElementById('locs-grid').innerHTML=SPY_LOCS.map(function(l){return '<div class="loc-chip'+(reveal&&l.n===curName?' cur':'')+'">'+l.i+' '+l.n+'</div>';}).join('');
+}
+function runSpyTimer(startAt,duration){
+  clearInterval(S.spyIv);S.spyIv=null;
+  function tick(){
+    var rem=Math.max(0,duration-(Date.now()-startAt));var fmt=fmtTime(rem);var low=rem<60000;
+    var e1=document.getElementById('spy-big-t'),e2=document.getElementById('spy-topbar-t');
+    if(e1){e1.textContent=fmt;e1.className='spy-big-t'+(low?' t-danger':'');}
+    if(e2){e2.textContent=fmt;e2.className='gt-timer'+(low?' t-danger':'');}
+  }
+  tick();S.spyIv=setInterval(tick,500);
+}
+async function startVoting(){
+  if(!S.isHost)return;
+  var gs=S.roomData.gameState||{};var newOpen=!gs.votingOpen;
+  await roomRef().update({'gameState.votingOpen':newOpen}).catch(console.error);
+  if(newOpen&&S.isHost)scheduleBotVotes();
+}
+function renderVoteList(existingVotes){
+  if(S.voteSubmitted){document.getElementById('vote-list').innerHTML='<div class="vote-submitted">✅ تم تسجيل تصويتك بنجاح! في انتظار المضيف للإعلان.</div>';return;}
+  var ps=Object.values(S.players).filter(function(p){return p.id!==S.playerId;});
+  document.getElementById('vote-list').innerHTML=ps.map(function(p){
+    return '<div class="vote-item'+(S.myVote===p.id?' selected':'')+'" onclick="selectVote(\''+p.id+'\')">'+(p.isBot?'🤖 ':'')+''+p.avatar+' '+p.name+'</div>';
+  }).join('')+'<button class="btn btn-coral" style="margin-top:8px;" onclick="submitVote()" '+(S.myVote?'':'disabled')+' id="btn-submit-vote">تأكيد التصويت 🗳️</button>';
+}
+function selectVote(pid){if(S.voteSubmitted)return;S.myVote=pid;renderVoteList(S.roomData.votes||{});}
+async function submitVote(){
+  if(!S.myVote||S.voteSubmitted)return;S.voteSubmitted=true;
+  var upd={};upd['votes.'+S.playerId]=S.myVote;
+  await roomRef().update(upd).catch(console.error);renderVoteList(S.roomData.votes||{});toast('تم تسجيل تصويتك سراً ✅');
+}
+function scheduleBotVotes(){
+  getBotIds().forEach(function(botId){
+    setTimeout(async function(){
+      var gs=S.roomData.gameState||{};if(!gs.votingOpen)return;
+      var others=Object.keys(S.players).filter(function(pid){return pid!==botId;});
+      if(!others.length)return;
+      var upd={};upd['votes.'+botId]=rand(others);
+      await roomRef().update(upd).catch(console.error);
+    },2000+Math.floor(Math.random()*6000));
+  });
+}
+async function revealSpy(){if(!S.isHost)return;await roomRef().update({'gameState.revealed':true,'gameState.votingOpen':false}).catch(console.error);}
+
+/* ════════════════════════════════════════════════════════════════
+   GAME 3 — SPEED ⚡ (unchanged + points + punishment)
+   ════════════════════════════════════════════════════════════════ */
+async function startSpeedRound(){
+  if(!S.isHost)return;cleanup();
+  var upd={status:'playing',currentGame:'speed',gameState:{numbers:shuffle([1,2,3,4,5,6,7,8,9,10]),startAt:Date.now()+3600,winnerId:null,finishOrder:[]}};
+  Object.keys(S.players).forEach(function(pid){upd['players.'+pid+'.speedTime']=null;});
+  await roomRef().update(upd).catch(console.error);
+}
+
+function handleSpeed(gs){
+  if(!gs)return;
+  showScreen('s-speed');
+  document.getElementById('speed-host-bar').classList.toggle('hidden',!S.isHost);
+  if(gs.winnerId){cleanup();showSpeedResults(gs);return;}
+  var now=Date.now();
+  if(now<gs.startAt){
+    var sec=Math.ceil((gs.startAt-now)/1000);
+    document.getElementById('speed-instr-txt').textContent='استعد…';
+    document.getElementById('speed-next-num').textContent='?';
+    if(!S.speedInited){buildGrid(gs.numbers,true);S.speedInited=true;}
+    showCdSplash(sec,gs.startAt);return;
+  }
+  hideCdSplash();
+  document.getElementById('speed-instr-txt').textContent='اضغط الأرقام من 1 إلى 10 تصاعدياً!';
+  if(!S.speedInited||S.speedStart===null){
+    S.speedStart=gs.startAt;S.speedNext=1;S.speedInited=true;
+    buildGrid(gs.numbers,false);runSpeedElapsed();
+    if(S.isHost)startBotSpeedEngine(gs);
+  }
+  buildProgDots();
+}
+
+async function showSpeedResults(gs){
+  var finishOrder=gs.finishOrder||[];
+  if(S.isHost){
+    var scoreUpd={};
+    finishOrder.forEach(function(pid,i){var pts=SPEED_POINTS[i]||0;if(pts>0)scoreUpd['players.'+pid+'.score']=firebase.firestore.FieldValue.increment(pts);});
+    if(Object.keys(scoreUpd).length)await roomRef().update(scoreUpd).catch(console.error);
+  }
+  var fin=Object.values(S.players).filter(function(p){return p.speedTime&&p.speedTime>0;}).sort(function(a,b){return a.speedTime-b.speedTime;});
+  var isMe=gs.winnerId===S.playerId;
+  var wp=S.players[gs.winnerId]||{};
+  var medals=['\uD83E\uDD47','\uD83E\uDD48','\uD83E\uDD49'];
+  document.getElementById('win-lb').innerHTML=fin.map(function(p,i){var me=p.id===S.playerId;var pts=SPEED_POINTS[i]||0;return '<div class="lb-row'+(me?' me':'')+(p.isBot?' bot-row':'')+'"><span class="lb-rank">'+(medals[i]||i+1)+'</span><span class="lb-name">'+p.avatar+' '+p.name+(me?' (أنت)':'')+'</span><span class="lb-pts">+'+pts+' نقطة</span><span class="lb-time">'+(p.speedTime/1000).toFixed(2)+'ث</span></div>';}).join('');
+  document.getElementById('win-emoji').textContent=isMe?'\uD83C\uDFC6':'\uD83D\uDC4F';
+  document.getElementById('win-title').textContent=isMe?'أنت الفائز!':wp.avatar+' '+wp.name+' فاز!';
+  document.getElementById('win-desc').textContent='لوحة المتصدرين:';
+  document.getElementById('win-overlay').classList.add('show');
+  if(isMe)vibrate([200,100,200,100,400]);
+  if(fin.length>1&&fin[fin.length-1].id===S.playerId){var p=randPunishment();document.getElementById('pun-emoji').textContent=p.e;document.getElementById('pun-title').textContent=p.t;document.getElementById('pun-desc').textContent=p.d;document.getElementById('punishment-card').classList.add('show');}
+}
+
+function buildGrid(nums,locked){
+  var colors=['#FF6B6B','#FF9F43','#FFD93D','#0BAB64','#00C8FF','#A855F7','#FF6FCF','#4ECDC4','#E17055','#74B9FF'];
+  document.getElementById('num-grid').innerHTML=nums.map(function(n){var bg=colors[(n-1)%colors.length];var cls=locked?'nbtn locked':'nbtn idle';return '<button class="'+cls+'" id="nb-'+n+'" style="background:'+(locked?'var(--bg3)':bg)+';color:'+(locked?'var(--text-dim)':'#fff')+';" onclick="clickNum('+n+')">'+n+'</button>';}).join('');
+}
+function buildProgDots(){
+  var row=document.getElementById('prog-row');row.innerHTML='';
+  for(var i=1;i<=10;i++){var cls='prog-d';if(i<S.speedNext)cls+=' done';else if(i===S.speedNext)cls+=' current';row.innerHTML+='<div class="'+cls+'"></div>';}
+  var nn=document.getElementById('speed-next-num');if(nn)nn.textContent=Math.min(S.speedNext,10);
+}
+function runSpeedElapsed(){
+  clearInterval(S.speedElapsIv);S.speedElapsIv=null;
+  S.speedElapsIv=setInterval(function(){if(!S.speedStart)return;var el=document.getElementById('speed-elapsed');if(el)el.textContent=fmtTime(Date.now()-S.speedStart);},100);
+}
+async function clickNum(n){
+  if(S.speedLocked)return;
+  var gs=S.roomData.gameState||{};
+  if(gs.winnerId||S.speedNext>10||Date.now()<(gs.startAt||0))return;
+  var btn=document.getElementById('nb-'+n);
+  if(!btn||btn.classList.contains('locked')||btn.classList.contains('done'))return;
+  if(n===S.speedNext){
+    btn.className='nbtn ok';vibrate(28);setTimeout(function(){var b=document.getElementById('nb-'+n);if(b)b.className='nbtn done';},300);
+    S.speedNext++;buildProgDots();
+    if(S.speedNext>10){
+      clearInterval(S.speedElapsIv);var ft=Date.now()-S.speedStart;
+      var curOrder=(gs.finishOrder||[]).concat([S.playerId]);
+      var upd={'gameState.finishOrder':curOrder,'players.'+S.playerId+'.speedTime':ft};
+      if(!gs.winnerId)upd['gameState.winnerId']=S.playerId;
+      await roomRef().update(upd).catch(console.error);
+    }
+  }else{btn.className='nbtn bad';vibrate([100,55,100]);triggerPenalty();setTimeout(function(){var b=document.getElementById('nb-'+n);if(b&&!b.classList.contains('done'))b.className='nbtn idle';},550);}
+}
+function triggerPenalty(){
+  if(S.speedLocked)return;S.speedLocked=true;
+  var ov=document.getElementById('pen-overlay'),cd=document.getElementById('pen-cd');
+  ov.classList.add('show');var cnt=2;if(cd)cd.textContent=cnt;
+  clearTimeout(S.speedPenTO);clearInterval(S.speedPenIv);
+  S.speedPenIv=setInterval(function(){cnt--;if(cd)cd.textContent=cnt;if(cnt<=0){clearInterval(S.speedPenIv);S.speedPenTO=setTimeout(function(){S.speedLocked=false;ov.classList.remove('show');},50);}},1000);
+}
+function hideWinner(){document.getElementById('win-overlay').classList.remove('show');}
+
+/* ── Bot speed engine ── */
+function startBotSpeedEngine(gs){
+  S.botSpeedState={};var bots=getBotIds();if(!bots.length)return;
+  bots.forEach(function(bid){S.botSpeedState[bid]={next:1,penalized:false,finished:false};});
+  bots.forEach(function(bid){scheduleBotSpeedClick(bid,gs);});
+}
+function scheduleBotSpeedClick(botId,gs){
+  setTimeout(async function(){
+    var cgs=S.roomData.gameState||{};if(cgs.winnerId)return;
+    var bst=S.botSpeedState[botId];if(!bst||bst.finished||bst.penalized)return;
+    var nextNum=bst.next;if(nextNum>10)return;
+    if(Math.random()<0.10){
+      bst.penalized=true;
+      setTimeout(function(){var b=S.botSpeedState[botId];if(b){b.penalized=false;scheduleBotSpeedClick(botId,gs);}},2000);
+    }else{
+      bst.next++;
+      if(bst.next>10){
+        bst.finished=true;var ft=Date.now()-S.speedStart;
+        var curOrder=(cgs.finishOrder||[]).concat([botId]);
+        var upd={'gameState.finishOrder':curOrder,'players.'+botId+'.speedTime':ft};
+        if(!cgs.winnerId)upd['gameState.winnerId']=botId;
+        await roomRef().update(upd).catch(console.error);return;
+      }
+      scheduleBotSpeedClick(botId,gs);
+    }
+  },300+Math.floor(Math.random()*400));
+}
+
+/* ════════════════════════════════════
+   COUNTDOWN SPLASH
+   ════════════════════════════════════ */
+var _cdTO=null;
+function showCdSplash(sec,startAt){
+  var sp=document.getElementById('cd-splash'),nm=document.getElementById('cd-num');
+  sp.classList.add('show');
+  if(nm){nm.textContent=sec;nm.style.animation='none';void nm.offsetHeight;nm.style.animation='';}
+  clearTimeout(_cdTO);
+  if(sec>0){_cdTO=setTimeout(function(){var rem=Math.ceil((startAt-Date.now())/1000);if(rem>0)showCdSplash(rem,startAt);else{hideCdSplash();handleSpeed(S.roomData.gameState||{});}},600);}
+  else hideCdSplash();
+}
+function hideCdSplash(){clearTimeout(_cdTO);var el=document.getElementById('cd-splash');if(el)el.classList.remove('show');}
+
+/* ════════════════════════════════════
+   WEB AUDIO — Bomb tick
+   ════════════════════════════════════ */
+function ensureAudio(){if(!S.audioCtx){try{S.audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){S.audioCtx=null;}}if(S.audioCtx&&S.audioCtx.state==='suspended')S.audioCtx.resume();}
+function playTick(){ensureAudio();if(!S.audioCtx)return;try{var o=S.audioCtx.createOscillator(),g=S.audioCtx.createGain();o.connect(g);g.connect(S.audioCtx.destination);o.type='square';o.frequency.setValueAtTime(1100,S.audioCtx.currentTime);g.gain.setValueAtTime(0.09,S.audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,S.audioCtx.currentTime+0.07);o.start();o.stop(S.audioCtx.currentTime+0.07);}catch(e){}}
+function startBombAudio(fast){ensureAudio();clearInterval(S.bombAudioIv);S.bombAudioIv=null;playTick();S.bombAudioIv=setInterval(playTick,fast?270:680);}
+function stopBombAudio(){clearInterval(S.bombAudioIv);S.bombAudioIv=null;}
+
+/* ════════════════════════════════════
+   HEARTBEAT
+   ════════════════════════════════════ */
+function startHeartbeat(){setInterval(function(){if(!S.roomId||!S.playerId)return;var u={};u['players.'+S.playerId+'.online']=true;roomRef().update(u).catch(function(){});},20000);}
+
+/* ════════════════════════════════════
+   INIT
+   ════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded',function(){
+  autoJoin();startHeartbeat();
+  ['touchstart','click'].forEach(function(ev){document.addEventListener(ev,function h(){ensureAudio();document.removeEventListener(ev,h);},{once:true});});
+  var ci=document.getElementById('join-room-id');if(ci)ci.addEventListener('input',function(){this.value=this.value.toUpperCase();});
+});
+</script>
+</body>
+</html>
