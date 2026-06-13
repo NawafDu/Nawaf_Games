@@ -1,0 +1,363 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "rooms": {
+      "$roomCode": {
+        // Anyone authenticated (anonymous auth) can read room metadata —
+        // required to validate room codes before joining.
+        ".read": "auth != null",
+
+        // Writes allowed if: (a) this is a brand-new room being created
+        // (no existing data, and the writer is setting themselves as
+        // host), or (b) the writer is already a player in the room.
+        // This prevents arbitrary authenticated users from tampering
+        // with rooms they're not part of, while still allowing room
+        // creation (where the creator isn't yet "in" players according
+        // to the old data).
+        ".write": "auth != null && (!data.exists() ? newData.child('hostUid').val() === auth.uid : root.child('rooms/' + $roomCode + '/players/' + auth.uid).exists())",
+
+        ".validate": "newData.hasChildren(['code','createdAt','hostUid','status','settings','players','roundNumber'])",
+
+        "code": {
+          ".validate": "newData.val() === $roomCode"
+        },
+
+        "hostUid": {
+          // Host can only be changed to a uid that is currently a player in
+          // the room (host migration). Enforced loosely here; the
+          // authoritative check (player must be connected, not a bot) is
+          // done by the migrating client using the players map which it
+          // can read, and the transaction (first-writer-wins) prevents
+          // two clients from migrating simultaneously.
+          ".validate": "newData.isString() && root.child('rooms/' + $roomCode + '/players/' + newData.val()).exists() && root.child('rooms/' + $roomCode + '/players/' + newData.val() + '/isBot').val() !== true"
+        },
+
+        "hostHeartbeatAt": {
+          // Any current player may write this — in practice only the
+          // active host does (useHostHeartbeat), and a newly-migrated
+          // host immediately starts writing it too. Allowing any player
+          // avoids a race where the rules check for "current host" lags
+          // behind a just-completed migration transaction.
+          ".write": "auth != null && root.child('rooms/' + $roomCode + '/players/' + auth.uid).exists()",
+          ".validate": "newData.isNumber()"
+        },
+
+        "status": {
+          ".write": "auth != null && (!data.parent().exists() || root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid)",
+          ".validate": "newData.val() === 'lobby' || newData.val() === 'starting' || newData.val() === 'match' || newData.val() === 'ended'"
+        },
+
+        "roundNumber": {
+          ".write": "auth != null && (!data.parent().exists() || root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid)",
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+
+        "activeGameId": {
+          ".write": "auth != null && (!data.parent().exists() || root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid || root.child('games/' + $roomCode + '/hostUid').val() === auth.uid)",
+          ".validate": "newData.val() === null || newData.isString()"
+        },
+
+        "createdAt": {
+          ".validate": "newData.isNumber()"
+        },
+
+        "updatedAt": {
+          ".validate": "newData.isNumber()"
+        },
+
+        "settings": {
+          ".write": "auth != null && root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid",
+          ".validate": "newData.hasChildren(['maxPlayers','saboteurCount','movementSpeed','taskCounts','killCooldownSec','meetingCooldownSec','actionCooldownSec','visibility','anonymousVoting','revealRoleOnElimination','discussionDurationSec','votingDurationSec','nodeCount','botDifficulty'])",
+
+          "maxPlayers": {
+            ".validate": "newData.isNumber() && newData.val() >= 4 && newData.val() <= 12"
+          },
+          "saboteurCount": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3"
+          },
+          "killCooldownSec": {
+            ".validate": "newData.isNumber() && newData.val() >= 10 && newData.val() <= 60"
+          },
+          "nodeCount": {
+            ".validate": "newData.isNumber() && newData.val() >= 6 && newData.val() <= 12"
+          },
+          "movementSpeed": {
+            ".validate": "newData.val() === 'very_slow' || newData.val() === 'slow' || newData.val() === 'normal' || newData.val() === 'fast'"
+          },
+          "botDifficulty": {
+            ".validate": "newData.val() === 'easy' || newData.val() === 'medium' || newData.val() === 'hard'"
+          },
+          "$other": {
+            ".validate": true
+          }
+        },
+
+        "players": {
+          "$uid": {
+            // A player may write their own player record. The host may
+            // write any player record (for kicks, bot management, ready
+            // resets, etc.)
+            ".write": "auth != null && (auth.uid === $uid || root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid)",
+
+            ".validate": "newData.hasChildren(['uid','displayName','baseName','avatarId','colorId','isHost','isBot','ready','connected','joinedAt','lastSeen'])",
+
+            "uid": {
+              ".validate": "newData.val() === $uid"
+            },
+            "displayName": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 24"
+            },
+            "isHost": {
+              ".validate": "newData.isBoolean()"
+            },
+            "isBot": {
+              ".validate": "newData.isBoolean()"
+            },
+            "ready": {
+              ".validate": "newData.isBoolean()"
+            },
+            "connected": {
+              ".validate": "newData.isBoolean()"
+            },
+            "$other": {
+              ".validate": true
+            }
+          }
+        },
+
+        "$other": {
+          ".validate": true
+        }
+      }
+    },
+
+    "games": {
+      "$roomCode": {
+        // Only players who are/were part of the corresponding room may
+        // read game state. We check membership via the rooms tree.
+        ".read": "auth != null && root.child('rooms/' + $roomCode + '/players/' + auth.uid).exists()",
+
+        // Gameplay actions (movement, tasks, eliminations, meetings,
+        // votes) write to TARGETED sub-paths via update()/transactions on
+        // those specific paths — never the whole game object — so that
+        // each per-field rule below independently and correctly governs
+        // who may write it, without cascade ambiguity. The only
+        // whole-object write is the initial `set()` at match start
+        // (matchService.ts) and the host's per-tick game-loop update
+        // (gameLoop.ts), both performed via update() targeting the
+        // specific paths they touch (see src/lib/gameActions/).
+        ".validate": "newData.hasChildren(['id','roomCode','startedAt','status','settings','map','players','hostUid'])",
+
+        "id": {
+          ".write": "root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid",
+          ".validate": "newData.val() === $roomCode"
+        },
+        "roomCode": {
+          ".write": "root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid",
+          ".validate": "newData.val() === $roomCode"
+        },
+        "startedAt": {
+          ".write": "root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid",
+          ".validate": "newData.isNumber()"
+        },
+        "status": {
+          ".write": "root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid || root.child('games/' + $roomCode + '/hostUid').val() === auth.uid",
+          ".validate": "newData.val() === 'active' || newData.val() === 'ended'"
+        },
+        "settings": {
+          ".write": "root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid"
+        },
+        "map": {
+          ".write": "root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid"
+        },
+        "winningTeam": {
+          ".write": "root.child('games/' + $roomCode + '/hostUid').val() === auth.uid",
+          ".validate": "newData.val() === null || newData.val() === 'citizens' || newData.val() === 'saboteurs'"
+        },
+        "endedAt": {
+          ".write": "root.child('games/' + $roomCode + '/hostUid').val() === auth.uid",
+          ".validate": "newData.isNumber()"
+        },
+
+        "hostUid": {
+          // Writers: (1) current host (room or game) reassigning
+          // normally, or (2) match-phase host migration
+          // (useMatchHostMigration) — any room player may migrate
+          // hostUid to a non-bot player who is currently a room player;
+          // transaction first-writer-wins prevents double migration.
+          ".write": "root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid || root.child('games/' + $roomCode + '/hostUid').val() === auth.uid || (auth != null && root.child('rooms/' + $roomCode + '/players/' + auth.uid).exists())",
+          ".validate": "newData.isString() && root.child('rooms/' + $roomCode + '/players/' + newData.val()).exists() && root.child('rooms/' + $roomCode + '/players/' + newData.val() + '/isBot').val() !== true"
+        },
+
+        "players": {
+          "$uid": {
+            ".validate": "newData.hasChildren(['uid','role','alive','movement','tasks','connected'])",
+
+            // Bots have no client of their own — the room host drives
+            // all bot behavior (movement, tasks, kills, voting) as part
+            // of the game-loop tick. This grant is scoped precisely to
+            // player records whose key starts with "bot_" (the prefix
+            // used everywhere bot uids are generated — see
+            // roomService.ts#fillWithBots and bots.ts), so it cannot be
+            // used to bypass the per-field rules below for human players.
+            ".write": "$uid.beginsWith('bot_') && root.child('games/' + $roomCode + '/hostUid').val() === auth.uid",
+
+            "uid": {
+              ".write": "root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid",
+              ".validate": "newData.val() === $uid"
+            },
+
+            "role": {
+              // Set once at match start by the host. Never written again
+              // by targeted updates (the mirrored role doesn't change).
+              ".write": "root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid",
+              ".validate": "newData.val() === 'citizen' || newData.val() === 'saboteur'"
+            },
+
+            "movement": {
+              // A human player updates only their own movement via a
+              // targeted transaction on this exact path (movement.ts).
+              // Bots: see the ".write" grant above.
+              // Initial creation exception: at match start, the room
+              // host writes every player's starting `movement` as part
+              // of the single `set()` that creates this whole game
+              // object (matchService.ts) — `!data.exists()` is true only
+              // the very first time this path is written.
+              ".write": "auth.uid === $uid || ($uid.beginsWith('bot_') && root.child('games/' + $roomCode + '/hostUid').val() === auth.uid) || (!data.exists() && root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid)",
+              ".validate": "newData.hasChildren(['currentNodeId','lastMovedAt'])",
+              "currentNodeId": { ".validate": "newData.isString()" },
+              "lastMovedAt": { ".validate": "newData.isNumber()" }
+            },
+
+            "tasks": {
+              ".write": "auth.uid === $uid || ($uid.beginsWith('bot_') && root.child('games/' + $roomCode + '/hostUid').val() === auth.uid) || (!data.exists() && root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid)"
+            },
+
+            "lastKillAt": {
+              // Written by a human saboteur themself (eliminate.ts), or
+              // by the host on behalf of a bot saboteur.
+              ".write": "($uid.beginsWith('bot_') && root.child('games/' + $roomCode + '/hostUid').val() === auth.uid) || (auth.uid === $uid && root.child('games/' + $roomCode + '/players/' + auth.uid + '/role').val() === 'saboteur')",
+              ".validate": "newData.isNumber()"
+            },
+
+            "alive": {
+              // Writers:
+              // 1. A human saboteur setting a target's alive=false during
+              //    an elimination (eliminate.ts).
+              // 2. The host setting an ejected player's alive=false when
+              //    resolving a meeting vote, or driving a bot saboteur's
+              //    elimination of a target (gameLoop.ts / bots.ts).
+              // 3. Initial creation: the host sets every player's
+              //    starting alive=true at match start.
+              ".write": "root.child('games/' + $roomCode + '/hostUid').val() === auth.uid || (auth != null && root.child('games/' + $roomCode + '/players/' + auth.uid + '/role').val() === 'saboteur') || (!data.exists() && root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid)",
+              ".validate": "newData.isBoolean()"
+            },
+
+            "eliminatedBy": {
+              ".write": "root.child('games/' + $roomCode + '/hostUid').val() === auth.uid || (auth != null && root.child('games/' + $roomCode + '/players/' + auth.uid + '/role').val() === 'saboteur')",
+              ".validate": "newData.val() === 'kill' || newData.val() === 'vote'"
+            },
+
+            "connected": {
+              ".write": "auth.uid === $uid || ($uid.beginsWith('bot_') && root.child('games/' + $roomCode + '/hostUid').val() === auth.uid) || (!data.exists() && root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid)",
+              ".validate": "newData.isBoolean()"
+            },
+
+            "$other": {
+              ".validate": true
+            }
+          }
+        },
+
+        // Secret role assignments — each player can only read their own.
+        // Written once by the host at match start, alongside the initial
+        // `set()` of the rest of the game object — at that moment
+        // `games/{code}/hostUid` doesn't exist yet, so we check the
+        // room's hostUid (the creating client IS the room host).
+        "secrets": {
+          "$uid": {
+            ".read": "auth.uid === $uid",
+            ".write": "root.child('rooms/' + $roomCode + '/hostUid').val() === auth.uid",
+            ".validate": "newData.hasChild('role')"
+          }
+        },
+
+        "meeting": {
+          // A non-host player starting a NEW meeting (reportBody /
+          // callEmergencyMeeting) writes the entire `meeting` object via
+          // a single targeted update to this path — allowed when the
+          // new value's phase is 'discussion' (i.e. a fresh meeting).
+          // The host additionally may write this path for phase
+          // transitions and clearing (set to null).
+          ".write": "(auth != null && root.child('rooms/' + $roomCode + '/players/' + auth.uid).exists() && newData.child('phase').val() === 'discussion') || root.child('games/' + $roomCode + '/hostUid').val() === auth.uid",
+          ".validate": "newData.val() === null || newData.hasChildren(['id','type','calledBy','phase','startedAt','votes'])",
+
+          "votes": {
+            // Anonymity: the app's UI never displays this map to players;
+            // only the host's per-tick tally reads it to compute `result`.
+            // Write access is restricted to each voter's own entry via a
+            // targeted update to meeting/votes/{uid} (castVote).
+            "$voterUid": {
+              ".write": "auth.uid === $voterUid",
+              ".validate": "newData.isString()"
+            }
+          },
+
+          "result": {
+            ".write": "root.child('games/' + $roomCode + '/hostUid').val() === auth.uid"
+          },
+
+          "$other": {
+            ".validate": true
+          }
+        },
+
+        "eventLog": {
+          "$eventId": {
+            ".write": "auth != null && root.child('rooms/' + $roomCode + '/players/' + auth.uid).exists()",
+            ".validate": "newData.hasChildren(['id','type','actorUid','timestamp'])"
+          }
+        },
+
+        "unreportedBodies": {
+          "$uid": {
+            ".write": "auth != null && root.child('rooms/' + $roomCode + '/players/' + auth.uid).exists()"
+          }
+        },
+
+        "hostHeartbeatAt": {
+          ".write": "root.child('games/' + $roomCode + '/hostUid').val() === auth.uid",
+          ".validate": "newData.isNumber()"
+        },
+
+        "$other": {
+          ".validate": true
+        }
+      }
+    },
+
+    "chat": {
+      "$roomCode": {
+        ".read": "auth != null && root.child('rooms/' + $roomCode + '/players/' + auth.uid).exists()",
+        "$meetingId": {
+          "$messageId": {
+            ".write": "auth != null && root.child('rooms/' + $roomCode + '/players/' + auth.uid).exists() && newData.child('senderUid').val() === auth.uid",
+            ".validate": "newData.hasChildren(['id','senderUid','senderName','text','timestamp']) && newData.child('text').isString() && newData.child('text').val().length <= 280"
+          }
+        }
+      }
+    },
+
+    "presence": {
+      "$roomCode": {
+        ".read": "auth != null && root.child('rooms/' + $roomCode + '/players/' + auth.uid).exists()",
+        "$uid": {
+          ".write": "auth.uid === $uid",
+          ".validate": "newData.hasChildren(['online','lastChanged'])"
+        }
+      }
+    }
+  }
+}
